@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Outreach Sender — Панель управления и Анти-спам</title>
+  <title>Outreach Sender</title>
   <style>
     :root {
       --bg: #0f131a;
@@ -30,7 +30,7 @@
       background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px;
       margin-bottom: 16px;
     }
-    .brand { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .brand { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .pill {
       display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
       padding: 4px 10px; border-radius: 999px; background: #1e293b; border: 1px solid var(--border);
@@ -43,6 +43,7 @@
       padding: 10px 16px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px;
     }
     .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .lang-btn.active-lang { background: var(--accent); color: #fff; border-color: var(--accent); }
     .grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
     @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
     .card {
@@ -93,27 +94,27 @@
   <div class="wrap">
     <div class="topbar">
       <div class="brand">
-        <span>Email Outreach Panel</span>
-        <span class="pill ok" id="shield-badge">Анти-спам защита активна</span>
-        <span class="pill" id="tg-badge">TG Бот: выкл</span>
+        <span data-i18n="appTitle">Email Outreach Panel</span>
+        <span class="pill ok" id="shield-badge"></span>
+        <span class="pill" id="tg-badge"></span>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <span class="pill" id="stat-today">Сегодня: 0 / 35</span>
-        <span class="pill" id="stat-total">Всего отправлено: 0</span>
-        <span class="pill" id="run-badge">Готов</span>
-        <button class="btn btn-red hidden" id="btn-stop-top" onclick="stopCampaign()">СТОП</button>
+        <span class="pill" id="stat-today"></span>
+        <span class="pill" id="stat-total"></span>
+        <span class="pill" id="run-badge"></span>
+        <button class="btn btn-red hidden" id="btn-stop-top" data-i18n="stopTopBtn" onclick="stopCampaign()"></button>
         <div style="display:flex; gap:4px;">
-          <button class="btn btn-ghost" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('ru')">RU</button>
-          <button class="btn btn-ghost" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('en')">EN</button>
-          <button class="btn btn-ghost" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('id')">ID</button>
+          <button class="btn btn-ghost lang-btn" id="lang-btn-ru" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('ru')">RU</button>
+          <button class="btn btn-ghost lang-btn" id="lang-btn-en" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('en')">EN</button>
+          <button class="btn btn-ghost lang-btn" id="lang-btn-id" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('id')">ID</button>
         </div>
       </div>
     </div>
 
     <div class="tabs">
-      <button class="tab-btn active" id="tab-btn-send" onclick="switchTab('send', this)">1. Запуск рассылки</button>
-      <button class="tab-btn" id="tab-btn-templates" onclick="switchTab('templates', this)">2. Шаблоны и Проверка текста</button>
-      <button class="tab-btn" id="tab-btn-accounts" onclick="switchTab('accounts', this)">3. Почты (SMTP/Resend) и Защита</button>
+      <button class="tab-btn active" id="tab-btn-send" data-i18n="tab1" onclick="switchTab('send', this)"></button>
+      <button class="tab-btn" id="tab-btn-templates" data-i18n="tab2" onclick="switchTab('templates', this)"></button>
+      <button class="tab-btn" id="tab-btn-accounts" data-i18n="tab3" onclick="switchTab('accounts', this)"></button>
     </div>
 
     <!-- TAB 1: SEND -->
@@ -121,46 +122,46 @@
       <div class="grid">
         <div>
           <div class="card">
-            <h2>Настройки волны</h2>
-            <label>От кого отправлять (Канал)</label>
+            <h2 data-i18n="waveSettings"></h2>
+            <label data-i18n="senderChannelLbl"></label>
             <select id="account-select"></select>
 
-            <label>База контактов</label>
+            <label data-i18n="sourceBaseLbl"></label>
             <select id="source-select" onchange="loadLeads()"></select>
 
             <div class="row">
               <div>
-                <label>Рынок</label>
+                <label data-i18n="marketLbl"></label>
                 <select id="market-select" onchange="loadLeads()">
-                  <option value="ALL">Все рынки</option>
-                  <option value="EN">EN (США/Британия/Синг/Авст)</option>
-                  <option value="ID">ID (Индонезия)</option>
-                  <option value="RU">RU (Русский)</option>
-                  <option value="UA">UA (Украина)</option>
+                  <option value="ALL" data-i18n="mktAll"></option>
+                  <option value="EN" data-i18n="mktEN"></option>
+                  <option value="ID" data-i18n="mktID"></option>
+                  <option value="RU" data-i18n="mktRU"></option>
+                  <option value="UA" data-i18n="mktUA"></option>
                 </select>
               </div>
               <div>
-                <label>Наличие сайта</label>
+                <label data-i18n="siteStatusLbl"></label>
                 <select id="site-select" onchange="loadLeads()">
-                  <option value="ALL">Все</option>
-                  <option value="no_site">Без сайта (горячие)</option>
-                  <option value="has_site">Есть сайт</option>
+                  <option value="ALL" data-i18n="siteAll"></option>
+                  <option value="no_site" data-i18n="siteNo"></option>
+                  <option value="has_site" data-i18n="siteHas"></option>
                 </select>
               </div>
             </div>
 
-            <label>Шаблон письма</label>
+            <label data-i18n="templateLbl"></label>
             <select id="template-select">
-              <option value="">Автоматически под рынок и сайт</option>
+              <option value="" data-i18n="tplAuto"></option>
             </select>
 
             <div class="row">
               <div>
-                <label>Макс. писем за день (потолок 50)</label>
+                <label data-i18n="maxDailyLbl"></label>
                 <input type="number" id="limit-input" value="25" min="1" max="50">
               </div>
               <div>
-                <label>Пауза от–до (мин. 45 сек)</label>
+                <label data-i18n="delayLbl"></label>
                 <div class="row">
                   <input type="number" id="min-delay" value="90" min="45">
                   <input type="number" id="max-delay" value="180" min="45">
@@ -171,16 +172,16 @@
             <div id="safety-box"></div>
 
             <div class="btn-row">
-              <button class="btn btn-ghost" onclick="runSafetyCheck()">Проверить анти-спам</button>
-              <button class="btn btn-green" id="btn-start" onclick="openConfirmModal()">Запустить рассылку</button>
+              <button class="btn btn-ghost" data-i18n="checkBtn" onclick="runSafetyCheck()"></button>
+              <button class="btn btn-green" id="btn-start" data-i18n="startBtn" onclick="openConfirmModal()"></button>
             </div>
           </div>
 
           <div class="card">
-            <h2>Быстрый тест на свой email</h2>
+            <h2 data-i18n="quickTestTitle"></h2>
             <div style="display:flex; gap:8px;">
-              <input type="email" id="test-email" placeholder="ваш_email@gmail.com">
-              <button class="btn btn-primary" onclick="sendTest()">Тест</button>
+              <input type="email" id="test-email" data-i18n-ph="testEmailPh">
+              <button class="btn btn-primary" data-i18n="testBtn" onclick="sendTest()"></button>
             </div>
             <div id="test-result"></div>
           </div>
@@ -189,14 +190,20 @@
         <div>
           <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-              <h2 style="margin:0;">Очередь контактов <span class="pill" id="queue-count">0</span></h2>
-              <input type="text" id="search-leads" placeholder="Поиск по email, компании, городу..." style="max-width:260px;" oninput="loadLeads()">
+              <h2 style="margin:0;"><span data-i18n="queueTitle"></span> <span class="pill" id="queue-count">0</span></h2>
+              <input type="text" id="search-leads" data-i18n-ph="searchPh" style="max-width:260px;" oninput="loadLeads()">
             </div>
             <div id="queue-stats" style="font-size:12px; color:var(--muted); margin-bottom:8px;"></div>
             <div class="scroll-table">
               <table>
                 <thead>
-                  <tr><th>Email</th><th>Компания</th><th>Рынок</th><th>Сайт</th><th>Город / Ниша</th></tr>
+                  <tr>
+                    <th data-i18n="thEmail"></th>
+                    <th data-i18n="thCompany"></th>
+                    <th data-i18n="thMarket"></th>
+                    <th data-i18n="thSite"></th>
+                    <th data-i18n="thCityNiche"></th>
+                  </tr>
                 </thead>
                 <tbody id="leads-tbody"></tbody>
               </table>
@@ -204,26 +211,26 @@
           </div>
 
           <div class="card">
-            <h2>Добавить контакты вручную (автопроверка MX)</h2>
-            <textarea id="import-text" placeholder="Вставьте email или строки 'email,Компания' по одной на строке..."></textarea>
+            <h2 data-i18n="importTitle"></h2>
+            <textarea id="import-text" data-i18n-ph="importPh"></textarea>
             <div class="row">
               <div>
-                <label>Куда добавить</label>
+                <label data-i18n="importTargetLbl"></label>
                 <select id="import-target">
-                  <option value="contacts.csv">contacts.csv (ручная база)</option>
-                  <option value="leads_ready.csv">leads_ready.csv (общая база)</option>
+                  <option value="contacts.csv" data-i18n="targetContacts"></option>
+                  <option value="leads_ready.csv" data-i18n="targetReady"></option>
                 </select>
               </div>
               <div style="display:flex; align-items:flex-end;">
-                <button class="btn btn-primary" style="width:100%;" onclick="importLeads()">Проверить MX и добавить</button>
+                <button class="btn btn-primary" style="width:100%;" data-i18n="importBtn" onclick="importLeads()"></button>
               </div>
             </div>
             <div id="import-result"></div>
           </div>
 
           <div class="card">
-            <h2>Живой журнал отправки <span class="pill" id="progress-pill">0 / 0</span></h2>
-            <div class="log-box" id="log-box">Ожидание запуска...</div>
+            <h2><span data-i18n="liveLogTitle"></span> <span class="pill" id="progress-pill">0 / 0</span></h2>
+            <div class="log-box" id="log-box"></div>
           </div>
         </div>
       </div>
@@ -233,22 +240,22 @@
     <div id="tab-templates" class="hidden">
       <div class="grid">
         <div class="card">
-          <h2>Редактор шаблонов</h2>
-          <label>Выберите шаблон</label>
+          <h2 data-i18n="tplEditorTitle"></h2>
+          <label data-i18n="selectTplLbl"></label>
           <select id="edit-tpl-select" onchange="loadTemplateIntoEditor()"></select>
-          <label>Тема письма (переменные: {company}, {brand_name}, {brand_url})</label>
+          <label data-i18n="tplSubjectLbl"></label>
           <input type="text" id="edit-tpl-subject">
-          <label>Текст письма (спинтакс: {Hi|Hello|Good day})</label>
+          <label data-i18n="tplBodyLbl"></label>
           <textarea id="edit-tpl-body" style="min-height:220px;"></textarea>
           <div class="btn-row">
-            <button class="btn btn-ghost" onclick="previewTemplateEditor()">Проверить анти-спам</button>
-            <button class="btn btn-primary" onclick="saveTemplateEditor()">Сохранить шаблон</button>
+            <button class="btn btn-ghost" data-i18n="checkBtn" onclick="previewTemplateEditor()"></button>
+            <button class="btn btn-primary" data-i18n="saveTplBtn" onclick="saveTemplateEditor()"></button>
           </div>
           <div id="tpl-save-result"></div>
         </div>
         <div class="card">
-          <h2>Как письмо увидит клиент</h2>
-          <div id="tpl-preview-box" style="background:#0b0e14; padding:14px; border-radius:8px; border:1px solid var(--border); white-space:pre-wrap; font-size:13px;">Нажмите «Проверить анти-спам», чтобы увидеть пример письма.</div>
+          <h2 data-i18n="clientPreviewTitle"></h2>
+          <div id="tpl-preview-box" style="background:#0b0e14; padding:14px; border-radius:8px; border:1px solid var(--border); white-space:pre-wrap; font-size:13px;"></div>
           <div id="tpl-safety-result"></div>
         </div>
       </div>
@@ -258,82 +265,71 @@
     <div id="tab-accounts" class="hidden">
       <div class="grid">
         <div class="card">
-          <h2>Подключить личный SMTP (Gmail и др.)</h2>
-          <p style="font-size:12px; color:var(--muted); margin-top:0;">
-            Для Gmail: включите двухэтапную проверку → «Пароли приложений» → вставьте 16 символов вместо обычного пароля.
-          </p>
-          <label>SMTP сервер</label>
+          <h2 data-i18n="smtpTitle"></h2>
+          <p style="font-size:12px; color:var(--muted); margin-top:0;" data-i18n="smtpHint"></p>
+          <label data-i18n="smtpHostLbl"></label>
           <input type="text" id="smtp-host" value="smtp.gmail.com">
           <div class="row">
             <div>
-              <label>Порт</label>
+              <label data-i18n="portLbl"></label>
               <input type="number" id="smtp-port" value="465">
             </div>
             <div>
-              <label>Имя отправителя</label>
-              <input type="text" id="smtp-name" placeholder="Например: Алексей">
+              <label data-i18n="senderNameLbl"></label>
+              <input type="text" id="smtp-name" data-i18n-ph="senderNamePh">
             </div>
           </div>
-          <label>Почта (логин SMTP)</label>
+          <label data-i18n="smtpUserLbl"></label>
           <input type="email" id="smtp-user" placeholder="example@gmail.com">
-          <label>Пароль приложения (или SMTP пароль)</label>
+          <label data-i18n="smtpPassLbl"></label>
           <input type="password" id="smtp-pass" placeholder="xxxx xxxx xxxx xxxx">
           <div class="btn-row">
-            <button class="btn btn-primary" onclick="addSmtpAccount()">Проверить и подключить</button>
+            <button class="btn btn-primary" data-i18n="smtpSaveBtn" onclick="addSmtpAccount()"></button>
           </div>
           <div id="smtp-result"></div>
         </div>
 
         <div>
           <div class="card">
-            <h2>Входящие ответы в Telegram (IMAP)</h2>
-            <p style="font-size:12px; color:var(--muted); margin-top:0;">
-              Укажите рабочий Gmail (куда Cloudflare пересылает письма) и его 16-символьный «Пароль приложения», чтобы ответы клиентов сразу падали в Telegram-бот с кнопкой «Ответить».
-            </p>
+            <h2 data-i18n="imapTitle"></h2>
+            <p style="font-size:12px; color:var(--muted); margin-top:0;" data-i18n="imapHint"></p>
             <div class="row">
               <div>
-                <label>IMAP сервер</label>
+                <label data-i18n="imapHostLbl"></label>
                 <input type="text" id="imap-host" value="imap.gmail.com">
               </div>
               <div>
-                <label>Порт</label>
+                <label data-i18n="portLbl"></label>
                 <input type="number" id="imap-port" value="993">
               </div>
             </div>
-            <label>Почта (логин IMAP)</label>
+            <label data-i18n="imapUserLbl"></label>
             <input type="email" id="imap-user" placeholder="work@gmail.com">
-            <label>Пароль приложения Google</label>
+            <label data-i18n="imapPassLbl"></label>
             <input type="password" id="imap-pass" placeholder="xxxx xxxx xxxx xxxx">
             <div class="btn-row">
-              <button class="btn btn-primary" onclick="saveImap()">Проверить и сохранить IMAP</button>
+              <button class="btn btn-primary" data-i18n="imapSaveBtn" onclick="saveImap()"></button>
             </div>
             <div id="imap-result"></div>
           </div>
 
           <div class="card">
-            <h2>Подключённые почтовые каналы</h2>
+            <h2 data-i18n="connectedChannelsTitle"></h2>
             <div id="accounts-list"></div>
           </div>
 
           <div class="card">
-            <h2>Чёрный список (Стоп-лист)</h2>
+            <h2 data-i18n="blacklistTitle"></h2>
             <div style="display:flex; gap:8px; margin-bottom:10px;">
-              <input type="text" id="blacklist-input" placeholder="spam@site.com или @domain.com">
-              <button class="btn btn-red" onclick="modifyBlacklist('add')">Заблокировать</button>
+              <input type="text" id="blacklist-input" data-i18n-ph="blacklistPh">
+              <button class="btn btn-red" data-i18n="blockBtn" onclick="modifyBlacklist('add')"></button>
             </div>
             <div id="blacklist-items" style="font-size:12px; color:var(--muted);"></div>
           </div>
 
           <div class="card">
-            <h2>Встроенные правила защиты от спама</h2>
-            <ul style="font-size:13px; color:var(--muted); padding-left:18px; margin:0;">
-              <li>Автоматическая MX-проверка доменов — отсеивает мёртвые адреса до отправки.</li>
-              <li>Минимальная пауза принудительно не ниже 45 сек (по умолчанию 90–180 сек).</li>
-              <li>Жёсткий дневной потолок: до 50 писем/день (Resend) и до 30 (SMTP).</li>
-              <li>Блокировка запуска при кривых скобках, заглушках, стоп-словах и сокращателях ссылок.</li>
-              <li>Анти-дубли: повторно отправленным и одному корпоративному домену дважды в день не шлёт.</li>
-              <li>Аварийный стоп: при 3 ошибках подряд рассылка останавливается сама.</li>
-            </ul>
+            <h2 data-i18n="rulesTitle"></h2>
+            <ul style="font-size:13px; color:var(--muted); padding-left:18px; margin:0;" id="rules-list"></ul>
           </div>
         </div>
       </div>
@@ -343,19 +339,363 @@
   <!-- CONFIRM MODAL -->
   <div class="modal-bg" id="confirm-modal">
     <div class="modal">
-      <h2>Подтверждение запуска рассылки</h2>
+      <h2 data-i18n="confirmTitle"></h2>
       <div id="modal-summary" style="font-size:13px; color:var(--muted); margin-bottom:12px;"></div>
       <div id="modal-preview" style="background:#0b0e14; padding:12px; border-radius:8px; border:1px solid var(--border); font-size:12px; white-space:pre-wrap; max-height:220px; overflow:auto;"></div>
       <div id="modal-warnings"></div>
       <div class="btn-row" style="justify-content:flex-end;">
-        <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
-        <button class="btn btn-green" id="modal-confirm-btn" onclick="startCampaignConfirmed()">Подтверждаю, запустить</button>
+        <button class="btn btn-ghost" data-i18n="cancelBtn" onclick="closeModal()"></button>
+        <button class="btn btn-green" id="modal-confirm-btn" data-i18n="confirmStartBtn" onclick="startCampaignConfirmed()"></button>
       </div>
     </div>
   </div>
 
   <script>
     let STATE_DATA = null;
+    let LAST_LEADS_DATA = null;
+    let LAST_SAFETY_RES = null;
+    let UI_LANG = localStorage.getItem('outreach_ui_lang') || 'ru';
+
+    const UI_I18N = {
+      ru: {
+        appTitle: 'Email Outreach Panel',
+        shield: 'Анти-спам защита активна',
+        tgOn: 'TG Бот: активен',
+        tgOff: 'TG Бот: выкл',
+        todayLbl: 'Сегодня',
+        totalLbl: 'Всего отправлено',
+        ready: 'Готов',
+        sending: 'Идёт рассылка...',
+        stopTopBtn: 'СТОП',
+        tab1: '1. Запуск рассылки',
+        tab2: '2. Шаблоны и Проверка текста',
+        tab3: '3. Почты (SMTP/Resend) и Защита',
+        waveSettings: 'Настройки волны',
+        senderChannelLbl: 'От кого отправлять (Канал)',
+        sourceBaseLbl: 'База контактов',
+        marketLbl: 'Рынок',
+        mktAll: 'Все рынки',
+        mktEN: 'EN (США/Британия/Синг/Авст)',
+        mktID: 'ID (Индонезия)',
+        mktRU: 'RU (Русский)',
+        mktUA: 'UA (Украина)',
+        siteStatusLbl: 'Наличие сайта',
+        siteAll: 'Все',
+        siteNo: 'Без сайта (горячие)',
+        siteHas: 'Есть сайт',
+        templateLbl: 'Шаблон письма',
+        tplAuto: 'Автоматически под рынок и сайт',
+        maxDailyLbl: 'Макс. писем за день (потолок 50)',
+        delayLbl: 'Пауза от–до (мин. 45 сек)',
+        checkBtn: 'Проверить анти-спам',
+        startBtn: 'Запустить рассылку',
+        quickTestTitle: 'Быстрый тест на свой email',
+        testEmailPh: 'ваш_email@gmail.com',
+        testBtn: 'Тест',
+        queueTitle: 'Очередь контактов',
+        searchPh: 'Поиск по email, компании, городу...',
+        thEmail: 'Email',
+        thCompany: 'Компания',
+        thMarket: 'Рынок',
+        thSite: 'Сайт',
+        thCityNiche: 'Город / Ниша',
+        importTitle: 'Добавить контакты вручную (автопроверка MX)',
+        importPh: "Вставьте email или строки 'email,Компания' по одной на строке...",
+        importTargetLbl: 'Куда добавить',
+        targetContacts: 'contacts.csv (ручная база)',
+        targetReady: 'leads_ready.csv (общая база)',
+        importBtn: 'Проверить MX и добавить',
+        liveLogTitle: 'Живой журнал отправки',
+        logWait: 'Ожидание запуска...',
+        tplEditorTitle: 'Редактор шаблонов',
+        selectTplLbl: 'Выберите шаблон',
+        tplSubjectLbl: 'Тема письма (переменные: {company}, {brand_name}, {brand_url})',
+        tplBodyLbl: 'Текст письма (спинтакс: {Hi|Hello|Good day})',
+        saveTplBtn: 'Сохранить шаблон',
+        clientPreviewTitle: 'Как письмо увидит клиент',
+        tplPreviewHint: 'Нажмите «Проверить анти-спам», чтобы увидеть пример письма.',
+        smtpTitle: 'Подключить личный SMTP (Gmail и др.)',
+        smtpHint: 'Для Gmail: включите двухэтапную проверку → «Пароли приложений» → вставьте 16 символов вместо обычного пароля.',
+        smtpHostLbl: 'SMTP сервер',
+        portLbl: 'Порт',
+        senderNameLbl: 'Имя отправителя',
+        senderNamePh: 'Например: Алексей',
+        smtpUserLbl: 'Почта (логин SMTP)',
+        smtpPassLbl: 'Пароль приложения (или SMTP пароль)',
+        smtpSaveBtn: 'Проверить и подключить',
+        imapTitle: 'Входящие ответы в Telegram (IMAP)',
+        imapHint: 'Укажите рабочий Gmail (куда Cloudflare пересылает письма) и его 16-символьный «Пароль приложения», чтобы ответы клиентов сразу падали в Telegram-бот с кнопкой «Ответить».',
+        imapHostLbl: 'IMAP сервер',
+        imapUserLbl: 'Почта (логин IMAP)',
+        imapPassLbl: 'Пароль приложения Google',
+        imapSaveBtn: 'Проверить и сохранить IMAP',
+        connectedChannelsTitle: 'Подключённые почтовые каналы',
+        blacklistTitle: 'Чёрный список (Стоп-лист)',
+        blacklistPh: 'spam@site.com или @domain.com',
+        blockBtn: 'Заблокировать',
+        rulesTitle: 'Встроенные правила защиты от спама',
+        rules: [
+          'Автоматическая MX-проверка доменов — отсеивает мёртвые адреса до отправки.',
+          'Минимальная пауза принудительно не ниже 45 сек (по умолчанию 90–180 сек).',
+          'Жёсткий дневной потолок: до 50 писем/день (Resend) и до 30 (SMTP).',
+          'Блокировка запуска при кривых скобках, заглушках, стоп-словах и сокращателях ссылок.',
+          'Анти-дубли: повторно отправленным и одному корпоративному домену дважды в день не шлёт.',
+          'Аварийный стоп: при 3 ошибках подряд рассылка останавливается сама.',
+        ],
+        confirmTitle: 'Подтверждение запуска рассылки',
+        cancelBtn: 'Отмена',
+        confirmStartBtn: 'Подтверждаю, запустить',
+        noAccounts: 'Нет подключённых аккаунтов',
+        deleteBtn: 'Удалить',
+        primaryEnv: 'Основной (.env)',
+        blacklistEmpty: 'Стоп-лист пока пуст.',
+        noContacts: 'Нет подходящих контактов.',
+        rowsWord: 'строк',
+        qStats: 'Всего в файле: {tot} · Пропущено (отправлено/CRM): {sent} · В стоп-листе: {bl} · Кулдаун домена: {cd}',
+        safetyHdr: 'Шаблон: {id} | Спам-рейтинг: {score}/100',
+        safetyErr: 'ОШИБКА: ',
+        safetyWarn: 'Предупреждение: ',
+        safetyOk: 'Проверка пройдена: текст чистый, можно отправлять.',
+        modalSum: 'Канал: <strong>{acc}</strong><br>В очереди: <strong>{q}</strong> (за раз уйдёт не больше суточного лимита <strong>{lim}</strong>)<br>Пауза между письмами: <strong>{dmin}–{dmax} сек</strong>',
+        subjectLbl: 'Тема',
+        testSentMsg: 'Тест отправлен ({id}), ID: {rid}',
+        checkingMx: 'Проверяем MX-записи доменов...',
+        importDone: 'Готово ({target}): добавлено {added}, дублей {dup}, кривых {syn}, без MX {mx}',
+        tplSaved: 'Шаблон сохранён.',
+        checkingSmtp: 'Проверяем подключение к SMTP...',
+        smtpOk: 'SMTP аккаунт проверен и подключён!',
+        checkingImap: 'Проверяем подключение к IMAP...',
+        imapOk: 'IMAP подключён! Новые ответы будут приходить в Telegram-бот.',
+      },
+      en: {
+        appTitle: 'Email Outreach Panel',
+        shield: 'Anti-spam guard active',
+        tgOn: 'TG Bot: active',
+        tgOff: 'TG Bot: off',
+        todayLbl: 'Today',
+        totalLbl: 'Total sent',
+        ready: 'Ready',
+        sending: 'Sending...',
+        stopTopBtn: 'STOP',
+        tab1: '1. Launch Campaign',
+        tab2: '2. Templates & Spam Check',
+        tab3: '3. Accounts (SMTP/Resend) & Guard',
+        waveSettings: 'Campaign Settings',
+        senderChannelLbl: 'Sender Account (Channel)',
+        sourceBaseLbl: 'Contact Database',
+        marketLbl: 'Market',
+        mktAll: 'All Markets',
+        mktEN: 'EN (US/UK/SG/AU)',
+        mktID: 'ID (Indonesia)',
+        mktRU: 'RU (Russian)',
+        mktUA: 'UA (Ukraine)',
+        siteStatusLbl: 'Website Status',
+        siteAll: 'All',
+        siteNo: 'No Website (hot)',
+        siteHas: 'Has Website',
+        templateLbl: 'Email Template',
+        tplAuto: 'Auto-match by market & website',
+        maxDailyLbl: 'Max emails/day (hard cap 50)',
+        delayLbl: 'Delay from–to (min 45s)',
+        checkBtn: 'Run Spam Check',
+        startBtn: 'Start Campaign',
+        quickTestTitle: 'Quick Test to Your Email',
+        testEmailPh: 'your_email@gmail.com',
+        testBtn: 'Test',
+        queueTitle: 'Contact Queue',
+        searchPh: 'Search email, company, city...',
+        thEmail: 'Email',
+        thCompany: 'Company',
+        thMarket: 'Market',
+        thSite: 'Site',
+        thCityNiche: 'City / Niche',
+        importTitle: 'Add Contacts Manually (Auto MX Check)',
+        importPh: "Paste emails or 'email,Company' lines, one per line...",
+        importTargetLbl: 'Save to',
+        targetContacts: 'contacts.csv (manual list)',
+        targetReady: 'leads_ready.csv (main database)',
+        importBtn: 'Verify MX & Add',
+        liveLogTitle: 'Live Sending Log',
+        logWait: 'Waiting to start...',
+        tplEditorTitle: 'Template Editor',
+        selectTplLbl: 'Select Template',
+        tplSubjectLbl: 'Subject (vars: {company}, {brand_name}, {brand_url})',
+        tplBodyLbl: 'Body (spintax: {Hi|Hello|Good day})',
+        saveTplBtn: 'Save Template',
+        clientPreviewTitle: 'Client Inbox Preview',
+        tplPreviewHint: 'Click "Run Spam Check" to preview the rendered email.',
+        smtpTitle: 'Connect Custom SMTP (Gmail, etc.)',
+        smtpHint: 'For Gmail: enable 2-Step Verification -> App Passwords -> paste the 16-character password.',
+        smtpHostLbl: 'SMTP Host',
+        portLbl: 'Port',
+        senderNameLbl: 'Sender Name',
+        senderNamePh: 'e.g. Alex',
+        smtpUserLbl: 'Email (SMTP Username)',
+        smtpPassLbl: 'App Password (or SMTP Password)',
+        smtpSaveBtn: 'Test & Connect',
+        imapTitle: 'Forward Replies to Telegram (IMAP)',
+        imapHint: 'Enter your work Gmail (receiving forwarded mail from Cloudflare) and its 16-char Google App Password so client replies appear in the Telegram bot with a Reply button.',
+        imapHostLbl: 'IMAP Host',
+        imapUserLbl: 'Email (IMAP Login)',
+        imapPassLbl: 'Google App Password',
+        imapSaveBtn: 'Test & Save IMAP',
+        connectedChannelsTitle: 'Connected Mail Channels',
+        blacklistTitle: 'Blacklist (Do Not Contact)',
+        blacklistPh: 'spam@site.com or @domain.com',
+        blockBtn: 'Block',
+        rulesTitle: 'Built-in Anti-Spam Rules',
+        rules: [
+          'Automatic DNS MX lookup — filters dead/non-existent domains before sending.',
+          'Minimum delay enforced at 45s+ (default 90–180s between emails).',
+          'Hard daily cap: max 50/day (Resend) and 30/day (SMTP).',
+          'Preflight blocker: rejects broken braces, placeholders, spam triggers, and URL shorteners.',
+          'Deduplication: skips sent contacts, CRM leads, and limits 1 email per corporate domain per day.',
+          'Circuit breaker: auto-stops the batch after 3 consecutive errors.',
+        ],
+        confirmTitle: 'Confirm Campaign Launch',
+        cancelBtn: 'Cancel',
+        confirmStartBtn: 'Confirm & Start',
+        noAccounts: 'No accounts configured',
+        deleteBtn: 'Delete',
+        primaryEnv: 'Primary (.env)',
+        blacklistEmpty: 'Blacklist is empty.',
+        noContacts: 'No matching contacts.',
+        rowsWord: 'rows',
+        qStats: 'Total in file: {tot} · Skipped (sent/CRM): {sent} · Blacklisted: {bl} · Domain cooldown: {cd}',
+        safetyHdr: 'Template: {id} | Spam score: {score}/100',
+        safetyErr: 'ERROR: ',
+        safetyWarn: 'Warning: ',
+        safetyOk: 'Preflight passed: clean text, safe to send.',
+        modalSum: 'Channel: <strong>{acc}</strong><br>In queue: <strong>{q}</strong> (up to daily cap <strong>{lim}</strong>)<br>Delay between emails: <strong>{dmin}–{dmax} sec</strong>',
+        subjectLbl: 'Subject',
+        testSentMsg: 'Test sent ({id}), ID: {rid}',
+        checkingMx: 'Checking domain MX records...',
+        importDone: 'Done ({target}): added {added}, duplicates {dup}, bad syntax {syn}, dead MX {mx}',
+        tplSaved: 'Template saved.',
+        checkingSmtp: 'Testing SMTP connection...',
+        smtpOk: 'SMTP account verified and connected!',
+        checkingImap: 'Testing IMAP connection...',
+        imapOk: 'IMAP connected! New client replies will arrive in Telegram.',
+      },
+      id: {
+        appTitle: 'Panel Email Outreach',
+        shield: 'Proteksi anti-spam aktif',
+        tgOn: 'Bot TG: aktif',
+        tgOff: 'Bot TG: nonaktif',
+        todayLbl: 'Hari ini',
+        totalLbl: 'Total terkirim',
+        ready: 'Siap',
+        sending: 'Mengirim...',
+        stopTopBtn: 'STOP',
+        tab1: '1. Mulai Kampanye',
+        tab2: '2. Template & Cek Spam',
+        tab3: '3. Akun (SMTP/Resend) & Proteksi',
+        waveSettings: 'Pengaturan Gelombang',
+        senderChannelLbl: 'Akun Pengirim (Channel)',
+        sourceBaseLbl: 'Database Kontak',
+        marketLbl: 'Pasar',
+        mktAll: 'Semua Pasar',
+        mktEN: 'EN (AS/Inggris/SG/AU)',
+        mktID: 'ID (Indonesia)',
+        mktRU: 'RU (Rusia)',
+        mktUA: 'UA (Ukraina)',
+        siteStatusLbl: 'Status Website',
+        siteAll: 'Semua',
+        siteNo: 'Belum Punya Website (hot)',
+        siteHas: 'Punya Website',
+        templateLbl: 'Template Email',
+        tplAuto: 'Otomatis sesuai pasar & website',
+        maxDailyLbl: 'Maks. email/hari (batas 50)',
+        delayLbl: 'Jeda kirim (min. 45 dtk)',
+        checkBtn: 'Cek Anti-Spam',
+        startBtn: 'Mulai Kampanye',
+        quickTestTitle: 'Tes Cepat ke Email Anda',
+        testEmailPh: 'email_anda@gmail.com',
+        testBtn: 'Tes',
+        queueTitle: 'Antrean Kontak',
+        searchPh: 'Cari email, perusahaan, kota...',
+        thEmail: 'Email',
+        thCompany: 'Perusahaan',
+        thMarket: 'Pasar',
+        thSite: 'Website',
+        thCityNiche: 'Kota / Kategori',
+        importTitle: 'Tambah Kontak Manual (Cek MX Otomatis)',
+        importPh: "Tempel daftar email atau 'email,Nama Perusahaan' per baris...",
+        importTargetLbl: 'Simpan ke',
+        targetContacts: 'contacts.csv (daftar manual)',
+        targetReady: 'leads_ready.csv (database utama)',
+        importBtn: 'Cek MX & Tambah',
+        liveLogTitle: 'Log Pengiriman Langsung',
+        logWait: 'Menunggu dimulai...',
+        tplEditorTitle: 'Editor Template',
+        selectTplLbl: 'Pilih Template',
+        tplSubjectLbl: 'Subjek (variabel: {company}, {brand_name}, {brand_url})',
+        tplBodyLbl: 'Isi pesan (spintax: {Halo|Selamat siang})',
+        saveTplBtn: 'Simpan Template',
+        clientPreviewTitle: 'Pratinjau di Kotak Masuk Klien',
+        tplPreviewHint: 'Klik "Cek Anti-Spam" untuk melihat contoh pesan.',
+        smtpTitle: 'Hubungkan SMTP Pribadi (Gmail, dll.)',
+        smtpHint: 'Untuk Gmail: aktifkan Verifikasi 2 Langkah -> App Passwords -> masukkan 16 karakter sandi aplikasi.',
+        smtpHostLbl: 'Server SMTP',
+        portLbl: 'Port',
+        senderNameLbl: 'Nama Pengirim',
+        senderNamePh: 'Misal: Budi',
+        smtpUserLbl: 'Email (Login SMTP)',
+        smtpPassLbl: 'App Password (atau sandi SMTP)',
+        smtpSaveBtn: 'Tes & Hubungkan',
+        imapTitle: 'Teruskan Balasan ke Telegram (IMAP)',
+        imapHint: 'Masukkan Gmail kerja (penerima forward Cloudflare) dan 16 karakter Google App Password agar balasan klien otomatis masuk ke bot Telegram.',
+        imapHostLbl: 'Server IMAP',
+        imapUserLbl: 'Email (Login IMAP)',
+        imapPassLbl: 'Google App Password',
+        imapSaveBtn: 'Tes & Simpan IMAP',
+        connectedChannelsTitle: 'Akun Email Terhubung',
+        blacklistTitle: 'Daftar Hitam (Blokir)',
+        blacklistPh: 'spam@site.com atau @domain.com',
+        blockBtn: 'Blokir',
+        rulesTitle: 'Aturan Proteksi Anti-Spam Bawaan',
+        rules: [
+          'Cek DNS MX otomatis — menyaring domain mati sebelum pengiriman.',
+          'Jeda minimum wajib minimal 45 detik (default 90–180 detik).',
+          'Batas harian ketat: maks 50/hari (Resend) dan 30/hari (SMTP).',
+          'Blokir otomatis jika kurung salah, kata spam, atau pemendek tautan terdeteksi.',
+          'Anti-duplikat: melewati kontak terkirim/CRM dan membatasi 1 email per domain kantor/hari.',
+          'Pemutus darurat: berhenti otomatis setelah 3 error berturut-turut.',
+        ],
+        confirmTitle: 'Konfirmasi Mulai Kampanye',
+        cancelBtn: 'Batal',
+        confirmStartBtn: 'Konfirmasi & Mulai',
+        noAccounts: 'Belum ada akun',
+        deleteBtn: 'Hapus',
+        primaryEnv: 'Utama (.env)',
+        blacklistEmpty: 'Daftar hitam kosong.',
+        noContacts: 'Tidak ada kontak yang cocok.',
+        rowsWord: 'baris',
+        qStats: 'Total di file: {tot} · Dilewati (terkirim/CRM): {sent} · Daftar hitam: {bl} · Cooldown domain: {cd}',
+        safetyHdr: 'Template: {id} | Skor spam: {score}/100',
+        safetyErr: 'ERROR: ',
+        safetyWarn: 'Peringatan: ',
+        safetyOk: 'Pemeriksaan lulus: teks aman dikirim.',
+        modalSum: 'Channel: <strong>{acc}</strong><br>Antrean: <strong>{q}</strong> (maksimal batas harian <strong>{lim}</strong>)<br>Jeda antar email: <strong>{dmin}–{dmax} dtk</strong>',
+        subjectLbl: 'Subjek',
+        testSentMsg: 'Tes terkirim ({id}), ID: {rid}',
+        checkingMx: 'Memeriksa record MX domain...',
+        importDone: 'Selesai ({target}): ditambah {added}, duplikat {dup}, format salah {syn}, MX mati {mx}',
+        tplSaved: 'Template tersimpan.',
+        checkingSmtp: 'Memeriksa koneksi SMTP...',
+        smtpOk: 'Akun SMTP terverifikasi dan terhubung!',
+        checkingImap: 'Memeriksa koneksi IMAP...',
+        imapOk: 'IMAP terhubung! Balasan baru akan masuk ke bot Telegram.',
+      },
+    };
+
+    function T() {
+      return UI_I18N[UI_LANG] || UI_I18N.ru;
+    }
+
+    function fmt(str, vars) {
+      return String(str).replace(/\{(\w+)\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : ''));
+    }
 
     async function api(path, opts = {}) {
       const res = await fetch(path, {
@@ -363,7 +703,7 @@
         ...opts,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка запроса');
+      if (!res.ok) throw new Error(data.error || 'Request failed');
       return data;
     }
 
@@ -394,87 +734,49 @@
       return list;
     }
 
-    let UI_LANG = localStorage.getItem('outreach_ui_lang') || 'ru';
-    const UI_I18N = {
-      ru: {
-        shield: 'Анти-спам защита активна',
-        ready: 'Готов',
-        sending: 'Идёт рассылка...',
-        tab1: '1. Запуск рассылки',
-        tab2: '2. Шаблоны и Проверка текста',
-        tab3: '3. Почты (SMTP/Resend) и Защита',
-        checkBtn: 'Проверить анти-спам',
-        startBtn: 'Запустить рассылку',
-        testBtn: 'Тест',
-        tgOn: 'TG Бот: активен',
-        tgOff: 'TG Бот: выкл',
-      },
-      en: {
-        shield: 'Anti-spam guard active',
-        ready: 'Ready',
-        sending: 'Sending...',
-        tab1: '1. Launch Campaign',
-        tab2: '2. Templates & Spam Check',
-        tab3: '3. Accounts (SMTP/Resend) & Guard',
-        checkBtn: 'Run Spam Check',
-        startBtn: 'Start Campaign',
-        testBtn: 'Test',
-        tgOn: 'TG Bot: active',
-        tgOff: 'TG Bot: off',
-      },
-      id: {
-        shield: 'Proteksi anti-spam aktif',
-        ready: 'Siap',
-        sending: 'Mengirim...',
-        tab1: '1. Mulai Kampanye',
-        tab2: '2. Template & Cek Spam',
-        tab3: '3. Akun (SMTP/Resend) & Proteksi',
-        checkBtn: 'Cek Anti-Spam',
-        startBtn: 'Mulai Kampanye',
-        testBtn: 'Tes',
-        tgOn: 'Bot TG: aktif',
-        tgOff: 'Bot TG: nonaktif',
-      },
-    };
-
     function setUiLang(lang) {
       UI_LANG = UI_I18N[lang] ? lang : 'ru';
       localStorage.setItem('outreach_ui_lang', UI_LANG);
-      const t = UI_I18N[UI_LANG];
-      document.getElementById('shield-badge').textContent = t.shield;
-      document.getElementById('tab-btn-send').textContent = t.tab1;
-      document.getElementById('tab-btn-templates').textContent = t.tab2;
-      document.getElementById('tab-btn-accounts').textContent = t.tab3;
-      document.querySelector('button[onclick="runSafetyCheck()"]').textContent = t.checkBtn;
-      document.getElementById('btn-start').textContent = t.startBtn;
-      document.querySelector('button[onclick="sendTest()"]').textContent = t.testBtn;
-      if (STATE_DATA) {
-        document.getElementById('tg-badge').textContent = STATE_DATA.tg_enabled ? t.tgOn : t.tgOff;
-        document.getElementById('run-badge').textContent = STATE_DATA.campaign.running ? t.sending : t.ready;
+      document.documentElement.lang = UI_LANG;
+      const t = T();
+
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active-lang'));
+      const activeBtn = document.getElementById('lang-btn-' + UI_LANG);
+      if (activeBtn) activeBtn.classList.add('active-lang');
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key] !== undefined) el.textContent = t[key];
+      });
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const key = el.getAttribute('data-i18n-ph');
+        if (t[key] !== undefined) el.placeholder = t[key];
+      });
+
+      document.getElementById('rules-list').innerHTML = t.rules.map(r => `<li>${escapeHtml(r)}</li>`).join('');
+      if (!STATE_DATA || !STATE_DATA.campaign.logs.length) {
+        document.getElementById('log-box').textContent = t.logWait;
       }
+      if (!LAST_SAFETY_RES) {
+        document.getElementById('tpl-preview-box').textContent = t.tplPreviewHint;
+      }
+
+      if (STATE_DATA) renderStateDynamic();
+      if (LAST_LEADS_DATA) renderLeadsDynamic();
+      if (LAST_SAFETY_RES) renderSafety('safety-box', LAST_SAFETY_RES);
     }
 
-    async function loadState() {
-      const data = await api('/api/state');
-      STATE_DATA = data;
-      const t = UI_I18N[UI_LANG] || UI_I18N.ru;
+    function renderStateDynamic() {
+      const data = STATE_DATA;
+      const t = T();
 
-      document.getElementById('stat-today').textContent = `Сегодня: ${data.stats.sent_today} / ${data.limits.default_daily_limit}`;
-      document.getElementById('stat-total').textContent = `Всего отправлено: ${data.stats.total_sent}`;
+      document.getElementById('shield-badge').textContent = t.shield;
+      document.getElementById('stat-today').textContent = `${t.todayLbl}: ${data.stats.sent_today} / ${data.limits.default_daily_limit}`;
+      document.getElementById('stat-total').textContent = `${t.totalLbl}: ${data.stats.total_sent}`;
 
       const tgBadge = document.getElementById('tg-badge');
       tgBadge.textContent = data.tg_enabled ? t.tgOn : t.tgOff;
       tgBadge.className = 'pill ' + (data.tg_enabled ? 'ok' : '');
-
-      if (data.imap) {
-        if (!document.getElementById('imap-user').value && data.imap.user) {
-          document.getElementById('imap-user').value = data.imap.user;
-        }
-        if (data.imap.configured) {
-          document.getElementById('imap-host').value = data.imap.host;
-          document.getElementById('imap-port').value = data.imap.port;
-        }
-      }
 
       const running = data.campaign.running;
       document.getElementById('run-badge').textContent = running ? t.sending : t.ready;
@@ -487,63 +789,78 @@
         const box = document.getElementById('log-box');
         box.textContent = data.campaign.logs.join('\n');
         box.scrollTop = box.scrollHeight;
+      } else {
+        document.getElementById('log-box').textContent = t.logWait;
       }
 
       const accSel = document.getElementById('account-select');
       const prevAcc = accSel.value;
       accSel.innerHTML = data.accounts.map(a =>
         `<option value="${escapeHtml(a.id)}">${escapeHtml(a.label)} — ${escapeHtml(a.sender_name)} &lt;${escapeHtml(a.sender_email)}&gt;</option>`
-      ).join('') || '<option value="">Нет подключённых аккаунтов</option>';
+      ).join('') || `<option value="">${escapeHtml(t.noAccounts)}</option>`;
       if (prevAcc && data.accounts.some(a => a.id === prevAcc)) accSel.value = prevAcc;
 
       const srcSel = document.getElementById('source-select');
       const prevSrc = srcSel.value;
       srcSel.innerHTML = data.sources.map(s =>
-        `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)} (${s.count} строк)</option>`
+        `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)} (${s.count} ${escapeHtml(t.rowsWord)})</option>`
       ).join('');
       if (prevSrc && data.sources.some(s => s.name === prevSrc)) srcSel.value = prevSrc;
 
       const allTpls = collectTemplates(data.templates);
       const tplSel = document.getElementById('template-select');
       const prevTpl = tplSel.value;
-      tplSel.innerHTML = '<option value="">Автоматически под рынок и сайт</option>' +
-        allTpls.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.id)} (${escapeHtml(t.key)})</option>`).join('');
+      tplSel.innerHTML = `<option value="">${escapeHtml(t.tplAuto)}</option>` +
+        allTpls.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} (${escapeHtml(item.key)})</option>`).join('');
       if (prevTpl) tplSel.value = prevTpl;
 
       const editSel = document.getElementById('edit-tpl-select');
       const prevEdit = editSel.value;
-      editSel.innerHTML = allTpls.map(t => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.id)} (${escapeHtml(t.key)})</option>`).join('');
+      editSel.innerHTML = allTpls.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} (${escapeHtml(item.key)})</option>`).join('');
       if (prevEdit) editSel.value = prevEdit;
       if (!document.getElementById('edit-tpl-subject').value && allTpls.length) loadTemplateIntoEditor();
 
-      // Render accounts list
       document.getElementById('accounts-list').innerHTML = data.accounts.map(a => `
         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px;">
           <div>
             <strong>${escapeHtml(a.label)}</strong> <span class="pill">${escapeHtml(a.provider.toUpperCase())}</span><br>
             <span style="color:var(--muted);">${escapeHtml(a.sender_name)} &lt;${escapeHtml(a.sender_email)}&gt;</span>
           </div>
-          ${a.provider === 'smtp' ? `<button class="btn btn-ghost" data-id="${escapeHtml(a.id)}" onclick="deleteSmtp(this.dataset.id)">Удалить</button>` : '<span class="pill ok">Основной (.env)</span>'}
+          ${a.provider === 'smtp' ? `<button class="btn btn-ghost" data-id="${escapeHtml(a.id)}" onclick="deleteSmtp(this.dataset.id)">${escapeHtml(t.deleteBtn)}</button>` : `<span class="pill ok">${escapeHtml(t.primaryEnv)}</span>`}
         </div>
       `).join('');
 
-      // Render blacklist
       document.getElementById('blacklist-items').innerHTML = data.blacklist.length
         ? data.blacklist.map(b => `<span class="pill" style="margin:3px;">${escapeHtml(b)} <a href="#" data-entry="${escapeHtml(b)}" style="color:#f87171;text-decoration:none;margin-left:4px;" onclick="modifyBlacklist('remove',this.dataset.entry);return false;">×</a></span>`).join('')
-        : 'Стоп-лист пока пуст.';
+        : escapeHtml(t.blacklistEmpty);
     }
 
-    async function loadLeads() {
-      const src = document.getElementById('source-select').value;
-      const mkt = document.getElementById('market-select').value;
-      const site = document.getElementById('site-select').value;
-      const q = document.getElementById('search-leads').value;
-      const qs = new URLSearchParams({ source: src, market: mkt, site_status: site, q });
-      const data = await api('/api/leads?' + qs.toString());
+    async function loadState() {
+      const data = await api('/api/state');
+      STATE_DATA = data;
 
+      if (data.imap) {
+        if (!document.getElementById('imap-user').value && data.imap.user) {
+          document.getElementById('imap-user').value = data.imap.user;
+        }
+        if (data.imap.configured) {
+          document.getElementById('imap-host').value = data.imap.host;
+          document.getElementById('imap-port').value = data.imap.port;
+        }
+      }
+      renderStateDynamic();
+    }
+
+    function renderLeadsDynamic() {
+      const data = LAST_LEADS_DATA;
+      const t = T();
       document.getElementById('queue-count').textContent = data.stats.queued;
-      document.getElementById('queue-stats').textContent =
-        `Всего в файле: ${data.stats.total_rows || 0} · Уже отправлено: ${data.stats.skipped_sent || 0} · В стоп-листе: ${data.stats.skipped_blacklist || 0} · Кулдаун домена: ${data.stats.skipped_domain_cooldown || 0}`;
+      document.getElementById('queue-stats').textContent = fmt(t.qStats, {
+        tot: data.stats.total_rows || 0,
+        sent: data.stats.skipped_sent || 0,
+        bl: data.stats.skipped_blacklist || 0,
+        cd: data.stats.skipped_domain_cooldown || 0,
+      });
 
       document.getElementById('leads-tbody').innerHTML = data.rows.map(r => `
         <tr>
@@ -553,7 +870,17 @@
           <td>${escapeHtml(r.site_status)}</td>
           <td>${escapeHtml([r.city, r.niche].filter(Boolean).join(' · '))}</td>
         </tr>
-      `).join('') || '<tr><td colspan="5" style="color:var(--muted);">Нет подходящих контактов.</td></tr>';
+      `).join('') || `<tr><td colspan="5" style="color:var(--muted);">${escapeHtml(t.noContacts)}</td></tr>`;
+    }
+
+    async function loadLeads() {
+      const src = document.getElementById('source-select').value;
+      const mkt = document.getElementById('market-select').value;
+      const site = document.getElementById('site-select').value;
+      const q = document.getElementById('search-leads').value;
+      const qs = new URLSearchParams({ source: src, market: mkt, site_status: site, q });
+      LAST_LEADS_DATA = await api('/api/leads?' + qs.toString());
+      renderLeadsDynamic();
     }
 
     async function runSafetyCheck() {
@@ -566,6 +893,7 @@
             template_id: document.getElementById('template-select').value,
           }),
         });
+        LAST_SAFETY_RES = res;
         renderSafety('safety-box', res);
         return res;
       } catch (e) {
@@ -575,18 +903,20 @@
     }
 
     function renderSafety(elId, res) {
+      const t = T();
       const s = res.safety;
       const cls = !s.ok ? 'err' : (s.warnings.length ? 'warn' : 'ok');
       const lines = [
-        `Шаблон: ${res.template_id} | Спам-рейтинг: ${s.spam_score}/100`,
-        ...(s.errors || []).map(x => 'ОШИБКА: ' + x),
-        ...(s.warnings || []).map(x => 'Предупреждение: ' + x),
-        s.ok && !s.warnings.length ? 'Проверка пройдена: текст чистый, можно отправлять.' : '',
+        fmt(t.safetyHdr, { id: res.template_id, score: s.spam_score }),
+        ...(s.errors || []).map(x => t.safetyErr + x),
+        ...(s.warnings || []).map(x => t.safetyWarn + x),
+        s.ok && !s.warnings.length ? t.safetyOk : '',
       ].filter(Boolean).join('\n');
       document.getElementById(elId).innerHTML = `<div class="alert ${cls}" style="white-space:pre-wrap;">${escapeHtml(lines)}</div>`;
     }
 
     async function openConfirmModal() {
+      const t = T();
       const safetyRes = await runSafetyCheck();
       if (!safetyRes) return;
 
@@ -596,13 +926,16 @@
       const accTxt = document.getElementById('account-select').selectedOptions[0]?.textContent || '';
       const qCount = document.getElementById('queue-count').textContent;
 
-      document.getElementById('modal-summary').innerHTML =
-        `Канал: <strong>${escapeHtml(accTxt)}</strong><br>` +
-        `В очереди: <strong>${escapeHtml(qCount)}</strong> (за раз уйдёт не больше суточного лимита <strong>${limit}</strong>)<br>` +
-        `Пауза между письмами: <strong>${Math.max(45, minD)}–${Math.max(45, maxD)} сек</strong>`;
+      document.getElementById('modal-summary').innerHTML = fmt(t.modalSum, {
+        acc: escapeHtml(accTxt),
+        q: escapeHtml(qCount),
+        lim: limit,
+        dmin: Math.max(45, minD),
+        dmax: Math.max(45, maxD),
+      });
 
       document.getElementById('modal-preview').textContent =
-        `Тема: ${safetyRes.rendered_subject}\n\n${safetyRes.rendered_body}`;
+        `${t.subjectLbl}: ${safetyRes.rendered_subject}\n\n${safetyRes.rendered_body}`;
 
       renderSafety('modal-warnings', safetyRes);
       document.getElementById('modal-confirm-btn').disabled = !safetyRes.safety.ok;
@@ -641,6 +974,7 @@
     }
 
     async function sendTest() {
+      const t = T();
       try {
         const res = await api('/api/test', {
           method: 'POST',
@@ -652,15 +986,16 @@
             template_id: document.getElementById('template-select').value,
           }),
         });
-        renderAlert('test-result', 'ok', `Тест отправлен (${res.template_id}), ID: ${res.id}`);
+        renderAlert('test-result', 'ok', fmt(t.testSentMsg, { id: res.template_id, rid: res.id }));
       } catch (e) {
         renderAlert('test-result', 'err', e.message);
       }
     }
 
     async function importLeads() {
+      const t = T();
       try {
-        renderAlert('import-result', 'warn', 'Проверяем MX-записи доменов...');
+        renderAlert('import-result', 'warn', t.checkingMx);
         const res = await api('/api/leads/import', {
           method: 'POST',
           body: JSON.stringify({
@@ -670,8 +1005,13 @@
             site_status: document.getElementById('site-select').value === 'ALL' ? 'no_site' : document.getElementById('site-select').value,
           }),
         });
-        renderAlert('import-result', 'ok',
-          `Готово (${res.target}): добавлено ${res.added}, дублей ${res.duplicates}, кривых ${res.invalid_syntax}, без MX ${res.invalid_mx}`);
+        renderAlert('import-result', 'ok', fmt(t.importDone, {
+          target: res.target,
+          added: res.added,
+          dup: res.duplicates,
+          syn: res.invalid_syntax,
+          mx: res.invalid_mx,
+        }));
         document.getElementById('import-text').value = '';
         await loadState();
         await loadLeads();
@@ -683,13 +1023,14 @@
     function loadTemplateIntoEditor() {
       if (!STATE_DATA) return;
       const id = document.getElementById('edit-tpl-select').value;
-      const item = collectTemplates(STATE_DATA.templates).find(t => t.id === id);
+      const item = collectTemplates(STATE_DATA.templates).find(x => x.id === id);
       if (!item) return;
       document.getElementById('edit-tpl-subject').value = item.subject;
       document.getElementById('edit-tpl-body').value = item.body;
     }
 
     async function previewTemplateEditor() {
+      const t = T();
       try {
         const res = await api('/api/safety/check', {
           method: 'POST',
@@ -699,7 +1040,7 @@
             body: document.getElementById('edit-tpl-body').value,
           }),
         });
-        document.getElementById('tpl-preview-box').textContent = `Тема: ${res.rendered_subject}\n\n${res.rendered_body}`;
+        document.getElementById('tpl-preview-box').textContent = `${t.subjectLbl}: ${res.rendered_subject}\n\n${res.rendered_body}`;
         renderSafety('tpl-safety-result', res);
       } catch (e) {
         renderAlert('tpl-safety-result', 'err', e.message);
@@ -707,6 +1048,7 @@
     }
 
     async function saveTemplateEditor() {
+      const t = T();
       try {
         await api('/api/templates/save', {
           method: 'POST',
@@ -716,7 +1058,7 @@
             body: document.getElementById('edit-tpl-body').value,
           }),
         });
-        renderAlert('tpl-save-result', 'ok', 'Шаблон сохранён.');
+        renderAlert('tpl-save-result', 'ok', t.tplSaved);
         await loadState();
       } catch (e) {
         renderAlert('tpl-save-result', 'err', e.message);
@@ -724,8 +1066,9 @@
     }
 
     async function addSmtpAccount() {
+      const t = T();
       try {
-        renderAlert('smtp-result', 'warn', 'Проверяем подключение к SMTP...');
+        renderAlert('smtp-result', 'warn', t.checkingSmtp);
         await api('/api/accounts/smtp', {
           method: 'POST',
           body: JSON.stringify({
@@ -737,7 +1080,7 @@
             smtp_password: document.getElementById('smtp-pass').value,
           }),
         });
-        renderAlert('smtp-result', 'ok', 'SMTP аккаунт проверен и подключён!');
+        renderAlert('smtp-result', 'ok', t.smtpOk);
         document.getElementById('smtp-pass').value = '';
         await loadState();
       } catch (e) {
@@ -746,8 +1089,9 @@
     }
 
     async function saveImap() {
+      const t = T();
       try {
-        renderAlert('imap-result', 'warn', 'Проверяем подключение к IMAP...');
+        renderAlert('imap-result', 'warn', t.checkingImap);
         await api('/api/imap', {
           method: 'POST',
           body: JSON.stringify({
@@ -757,7 +1101,7 @@
             password: document.getElementById('imap-pass').value,
           }),
         });
-        renderAlert('imap-result', 'ok', 'IMAP подключён! Новые ответы будут приходить в Telegram-бот.');
+        renderAlert('imap-result', 'ok', t.imapOk);
         document.getElementById('imap-pass').value = '';
         await loadState();
       } catch (e) {

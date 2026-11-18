@@ -73,6 +73,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "btn_done": "✅ Обработан",
         "lead_saved": "⭐ Контакт `{email}` зафиксирован как Лид (больше не попадёт в холодную рассылку).",
         "done_saved": "✅ Контакт `{email}` отмечен как Обработан.",
+        "campaign_done": "🏁 Рассылка завершена: отправлено {sent}, ошибок {errors}.",
+        "status_report": "📊 Сегодня: {today} | Всего: {total}\nПрогресс: {cur}/{tot}",
         "wiz_market": "Шаг 1/3 — Выберите рынок базы:",
         "wiz_site": "Шаг 2/3 — Фильтр по сайту компании:",
         "wiz_limit": "Шаг 3/3 — Сколько писем отправить в этой волне?",
@@ -124,6 +126,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "btn_done": "✅ Mark Done",
         "lead_saved": "⭐ Saved `{email}` as Lead (excluded from future cold blasts).",
         "done_saved": "✅ Marked `{email}` as Done.",
+        "campaign_done": "🏁 Campaign finished: sent={sent}, errors={errors}.",
+        "status_report": "📊 Today: {today} | Total: {total}\nProgress: {cur}/{tot}",
         "wiz_market": "Step 1/3 — Select target market:",
         "wiz_site": "Step 2/3 — Filter by company website:",
         "wiz_limit": "Step 3/3 — How many emails to send in this batch?",
@@ -175,6 +179,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "btn_done": "✅ Selesai",
         "lead_saved": "⭐ `{email}` ditandai sebagai Prospek (tidak akan dikirimi blast lagi).",
         "done_saved": "✅ `{email}` ditandai Selesai.",
+        "campaign_done": "🏁 Kampanye selesai: terkirim={sent}, error={errors}.",
+        "status_report": "📊 Hari ini: {today} | Total: {total}\nProgres: {cur}/{tot}",
         "wiz_market": "Langkah 1/3 — Pilih target pasar:",
         "wiz_site": "Langkah 2/3 — Filter status website:",
         "wiz_limit": "Langkah 3/3 — Jumlah maksimal email gelombang ini:",
@@ -442,7 +448,7 @@ class TelegramBotRunner:
                 def _done(res: dict) -> None:
                     self.send_msg(
                         chat_id,
-                        f"🏁 Campaign finished: sent={res.get('sent', 0)}, errors={res.get('errors', 0)}",
+                        _t(state, chat_id, "campaign_done", sent=res.get("sent", 0), errors=res.get("errors", 0)),
                     )
 
                 start_campaign_async(
@@ -640,9 +646,16 @@ class TelegramBotRunner:
             sent_stats = get_sent_stats(load_sent_log())
             logs_tail = "\n".join(snap["logs"][-10:]) if snap["logs"] else ""
             body = (
-                f"Today: {sent_stats['sent_today']} | Total: {sent_stats['total_sent']}\n"
-                f"Progress: {snap['progress_current']}/{snap['progress_total']}\n"
-                + (f"\n{logs_tail}" if logs_tail else "")
+                _t(
+                    state,
+                    chat_id,
+                    "status_report",
+                    today=sent_stats["sent_today"],
+                    total=sent_stats["total_sent"],
+                    cur=snap["progress_current"],
+                    tot=snap["progress_total"],
+                )
+                + (f"\n\n{logs_tail}" if logs_tail else "")
             )
             self.send_msg(chat_id, body, reply_markup=kb)
             return
