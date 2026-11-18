@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import io
 import json
 import os
 import threading
@@ -19,10 +21,14 @@ from core_service import (
     get_env,
     import_leads_text,
     load_imap_config,
+    load_inbox_store,
     mask_account,
     preview_template_safety,
+    reply_to_inbox_item,
     save_imap_config,
     start_campaign_async,
+    sync_imap_inbox,
+    update_inbox_status,
 )
 from guardrails import (
     HARD_DAILY_LIMIT_RESEND,
@@ -30,6 +36,7 @@ from guardrails import (
     MIN_DELAY_FLOOR_SEC,
     check_message_safety,
     load_blacklist,
+    load_crm_contacts,
     save_blacklist,
     validate_template_syntax,
 )
@@ -168,6 +175,45 @@ class PanelHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if parsed.path == "/api/inbox":
+            imap_cfg = load_imap_config()
+            store = load_inbox_store()
+            sent_log = load_sent_log()
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "imap_configured": bool(imap_cfg.get("user") and imap_cfg.get("password")),
+                    "imap_user": imap_cfg.get("user", ""),
+                    "items": list(reversed(store.get("items", []))),
+                    "crm": list(
+                        sorted(
+                            load_crm_contacts().values(),
+                            key=lambda x: x.get("updated_at", ""),
+                            reverse=True,
+                        )
+                    ),
+                    "sent": [item for item in reversed(sent_log[-250:])],
+                },
+            )
+            return
+
+        if parsed.path == "/api/sent/export":
+            sent_log = load_sent_log()
+            buf = io.StringIO()
+            fields = ["sent_at", "status", "email", "company", "market", "template", "provider", "from", "subject", "id", "error"]
+            writer = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
+            writer.writeheader()
+            for row in sent_log:
+                writer.writerow({k: row.get(k, "") for k in fields})
+            raw_bytes = ("\ufeff" + buf.getvalue()).encode("utf-8")
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="sent_history.csv"')
+            self.send_header("Content-Length", str(len(raw_bytes)))
+            self.end_headers()
+            self.wfile.write(raw_bytes)
+            return
+
         self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
 
     def do_POST(self) -> None:  # noqa: N802
@@ -233,6 +279,23 @@ class PanelHandler(BaseHTTPRequestHandler):
                 STATE.stop_event.set()
                 STATE.append_log("Получена команда остановки...")
                 self._send_json(HTTPStatus.OK, {"ok": True})
+            elif parsed.path == "/api/inbox/sync":
+                added = sync_imap_inbox()
+                self._send_json(HTTPStatus.OK, {"ok": True, "added": len(added)})
+            elif parsed.path == "/api/inbox/reply":
+                res = reply_to_inbox_item(
+                    item_id=str(body.get("id") or ""),
+                    reply_text=str(body.get("text") or ""),
+                    via="web",
+                    account_id=(body.get("account_id") or "").strip() or None,
+                )
+                self._send_json(HTTPStatus.OK, res)
+            elif parsed.path == "/api/inbox/status":
+                res = update_inbox_status(
+                    item_id=str(body.get("id") or ""),
+                    status=str(body.get("status") or ""),
+                )
+                self._send_json(HTTPStatus.OK, res)
             else:
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
         except Exception as exc:  # noqa: BLE001

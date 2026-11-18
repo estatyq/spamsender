@@ -39,6 +39,7 @@ CONTACTS_PATH = DATA_DIR / "contacts.csv"
 TEMPLATES_JSON_PATH = BASE_DIR / "templates.json"
 TEMPLATE_TXT_PATH = BASE_DIR / "template.txt"
 SENT_LOG_PATH = DATA_DIR / "sent_log.json"
+SENT_LOG_LOCK = threading.Lock()
 RESEND_API_URL = "https://api.resend.com/emails"
 SPINTAX_RE = re.compile(r"\{([^{}]*\|[^{}]*)\}")
 
@@ -200,23 +201,27 @@ def render_message(
 
 def load_sent_log(path: Path = SENT_LOG_PATH) -> list[dict]:
     """Load existing sent records from sent_log.json."""
-    if not path.exists():
-        return []
-    content = path.read_text(encoding="utf-8").strip()
-    if not content:
-        return []
-    data = json.loads(content)
-    if not isinstance(data, list):
-        raise ValueError("sent_log.json must contain a JSON list")
-    return data
+    with SENT_LOG_LOCK:
+        if not path.exists():
+            return []
+        content = path.read_text(encoding="utf-8").strip()
+        if not content:
+            return []
+        data = json.loads(content)
+        if not isinstance(data, list):
+            raise ValueError("sent_log.json must contain a JSON list")
+        return data
 
 
 def save_sent_log(records: list[dict], path: Path = SENT_LOG_PATH) -> None:
-    """Persist sent records to sent_log.json."""
-    path.write_text(
-        json.dumps(records, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    """Persist sent records atomically to sent_log.json."""
+    with SENT_LOG_LOCK:
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(records, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        tmp.replace(path)
 
 
 def send_via_resend(
@@ -229,6 +234,7 @@ def send_via_resend(
     text_body: str,
     html_body: str,
     reply_headers: dict[str, str] | None = None,
+    idempotency_key: str | None = None,
 ) -> dict:
     """Send a single email via Resend REST API and return parsed JSON response."""
     sender = f"{from_name} <{from_email}>" if from_name else from_email
@@ -244,14 +250,18 @@ def send_via_resend(
     if reply_headers:
         payload["headers"] = reply_headers
 
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "User-Agent": "outreach-mailer/1.0",
+    }
+    if idempotency_key:
+        headers["Idempotency-Key"] = idempotency_key
+
     req = urllib.request.Request(
         RESEND_API_URL,
         data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "outreach-mailer/1.0",
-        },
+        headers=headers,
         method="POST",
     )
     try:
@@ -331,6 +341,7 @@ def send_via_account(
     text_body: str,
     html_body: str,
     reply_headers: dict[str, str] | None = None,
+    idempotency_key: str | None = None,
 ) -> dict:
     """Dispatch email using either a Resend or SMTP account dictionary."""
     provider = account.get("provider", "resend")
@@ -364,6 +375,7 @@ def send_via_account(
         text_body=text_body,
         html_body=html_body,
         reply_headers=reply_headers,
+        idempotency_key=idempotency_key,
     )
 
 
@@ -588,6 +600,29 @@ def execute_campaign(
     error_count = 0
     consecutive_errors = 0
     sent_domains_this_run: set[str] = set()
+    today_utc = dt.datetime.now(dt.timezone.utc).date().isoformat()
+
+    # Cross-run cooldown: protect against immediate Stop + Start clicks
+    if not dry_run:
+        sent_timestamps = [
+            str(item.get("sent_at", ""))
+            for item in sent_log
+            if item.get("status") == "sent" and item.get("sent_at")
+        ]
+        if sent_timestamps:
+            try:
+                last_dt = dt.datetime.fromisoformat(sent_timestamps[-1])
+                elapsed = (dt.datetime.now(dt.timezone.utc) - last_dt).total_seconds()
+                if 0 <= elapsed < safe_min:
+                    wait_rem = int(safe_min - elapsed) + 1
+                    log_cb(f"[Анти-спам] Недавняя отправка {int(elapsed)}с назад — ждём {wait_rem}с до следующего письма...")
+                    if stop_event and stop_event.wait(wait_rem):
+                        log_cb("Остановлено пользователем во время паузы.")
+                        return {"ok": True, "sent": 0, "errors": 0}
+                    if not stop_event:
+                        time.sleep(wait_rem)
+            except ValueError:
+                pass
 
     for idx, contact in enumerate(batch, start=1):
         if stop_event and stop_event.is_set():
@@ -595,6 +630,16 @@ def execute_campaign(
             break
 
         to_email = contact["email"]
+        # Re-read sent_log right before sending so nothing can double-send
+        fresh_log = load_sent_log(SENT_LOG_PATH)
+        if any(
+            item.get("status") == "sent"
+            and str(item.get("email", "")).strip().lower() == to_email.lower()
+            for item in fresh_log
+        ):
+            log_cb(f"[{idx}/{len(batch)}] Пропуск {to_email}: уже есть в sent_log.json.")
+            continue
+
         domain = to_email.lower().split("@", 1)[1]
         if domain not in PUBLIC_EMAIL_DOMAINS and domain in sent_domains_this_run and not dry_run:
             log_cb(f"[{idx}/{len(batch)}] Пропуск {to_email}: домен {domain} уже получал письмо в этой волне.")
@@ -627,7 +672,9 @@ def execute_campaign(
                 subject=subject,
                 text_body=text_body,
                 html_body=html_body,
+                idempotency_key=f"outreach-{today_utc}-{to_email.lower()}",
             )
+            sent_log = load_sent_log(SENT_LOG_PATH)
             sent_log.append(
                 {
                     "email": to_email,

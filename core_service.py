@@ -21,6 +21,9 @@ from guardrails import (
     DATA_DIR,
     check_message_safety,
     enforce_safe_pacing,
+    load_blacklist,
+    save_blacklist,
+    upsert_crm_contact,
 )
 from mailer import (
     CONTACTS_PATH,
@@ -40,6 +43,8 @@ from mailer import (
 from prepare_leads import check_domain_mx, is_clean_syntax
 
 IMAP_CONFIG_PATH = DATA_DIR / "imap_config.json"
+INBOX_PATH = DATA_DIR / "inbox_messages.json"
+INBOX_LOCK = threading.Lock()
 
 
 class CampaignState:
@@ -549,3 +554,203 @@ def send_reply_email(
         html_body=render_html_from_text(reply_text.strip()),
         reply_headers=headers or None,
     )
+
+
+def load_inbox_store() -> dict:
+    """Load shared synchronized inbox_messages.json."""
+    with INBOX_LOCK:
+        if not INBOX_PATH.exists():
+            return {"last_uid": 0, "next_id": 1, "items": []}
+        raw = INBOX_PATH.read_text(encoding="utf-8").strip()
+        if not raw:
+            return {"last_uid": 0, "next_id": 1, "items": []}
+        data = json.loads(raw)
+        data.setdefault("last_uid", 0)
+        data.setdefault("next_id", 1)
+        data.setdefault("items", [])
+        return data
+
+
+def _save_inbox_store_unlocked(data: dict) -> None:
+    tmp = INBOX_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(INBOX_PATH)
+
+
+def save_inbox_store(data: dict) -> None:
+    """Atomically persist shared inbox_messages.json."""
+    with INBOX_LOCK:
+        _save_inbox_store_unlocked(data)
+
+
+def sync_imap_inbox(seed_last_uid: int = 0) -> list[dict]:
+    """Poll IMAP once, append new replies to inbox_messages.json & CRM, return newly added items."""
+    with INBOX_LOCK:
+        store = (
+            json.loads(INBOX_PATH.read_text(encoding="utf-8"))
+            if INBOX_PATH.exists() and INBOX_PATH.read_text(encoding="utf-8").strip()
+            else {"last_uid": 0, "next_id": 1, "items": []}
+        )
+        store.setdefault("last_uid", 0)
+        store.setdefault("next_id", 1)
+        store.setdefault("items", [])
+        last_uid = max(int(store.get("last_uid") or 0), int(seed_last_uid or 0))
+        new_max, fetched = fetch_new_imap_replies(last_uid)
+        existing_uids = {str(it.get("uid")) for it in store["items"]}
+        added: list[dict] = []
+
+        for rep in fetched:
+            if str(rep["uid"]) in existing_uids:
+                continue
+            item_id = str(store["next_id"])
+            store["next_id"] += 1
+            now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
+            item = {
+                **rep,
+                "id": item_id,
+                "status": "REPLIED",
+                "received_at": now_iso,
+                "notified_tg": False,
+                "our_replies": [],
+            }
+            store["items"].append(item)
+            added.append(item)
+            upsert_crm_contact(
+                rep["from_email"],
+                "REPLIED",
+                name=rep.get("from_name", ""),
+                subject=rep.get("subject", ""),
+                last_message=rep.get("body", ""),
+            )
+
+        if len(store["items"]) > 200:
+            store["items"] = store["items"][-200:]
+        if new_max != store["last_uid"] or added:
+            store["last_uid"] = new_max
+            _save_inbox_store_unlocked(store)
+        return added
+
+
+def mark_inbox_notified(item_ids: list[str]) -> None:
+    """Mark inbox items as forwarded to Telegram."""
+    id_set = set(item_ids)
+    with INBOX_LOCK:
+        if not INBOX_PATH.exists():
+            return
+        store = json.loads(INBOX_PATH.read_text(encoding="utf-8"))
+        changed = False
+        for it in store.get("items", []):
+            if str(it.get("id")) in id_set and not it.get("notified_tg"):
+                it["notified_tg"] = True
+                changed = True
+        if changed:
+            _save_inbox_store_unlocked(store)
+
+
+def find_inbox_item(item_id: str) -> dict | None:
+    """Return a copy of an inbox item by id."""
+    store = load_inbox_store()
+    for it in store.get("items", []):
+        if str(it.get("id")) == str(item_id):
+            return dict(it)
+    return None
+
+
+def reply_to_inbox_item(
+    item_id: str,
+    reply_text: str,
+    via: str = "web",
+    account_id: str | None = None,
+) -> dict:
+    """Send threaded reply to an inbox message and synchronize inbox + CRM."""
+    clean_text = reply_text.strip()
+    if not clean_text:
+        raise ValueError("Reply text cannot be empty.")
+    item = find_inbox_item(item_id)
+    if not item:
+        raise ValueError(f"Inbox item '{item_id}' not found.")
+
+    env = get_env()
+    acc = find_account(account_id, env)
+    res = send_reply_email(
+        to_email=item["from_email"],
+        subject=item["subject"],
+        reply_text=clean_text,
+        in_reply_to=item.get("message_id", ""),
+        references=item.get("references", ""),
+        account_id=acc.get("id"),
+    )
+    sender_display = f"{acc['sender_name']} <{acc['sender_email']}>"
+    now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
+
+    with INBOX_LOCK:
+        store = json.loads(INBOX_PATH.read_text(encoding="utf-8"))
+        new_status = "REPLIED_BY_US"
+        for it in store.get("items", []):
+            if str(it.get("id")) == str(item_id):
+                it.setdefault("our_replies", []).append(
+                    {
+                        "text": clean_text,
+                        "sent_at": now_iso,
+                        "via": via,
+                        "from": sender_display,
+                        "id": res.get("id"),
+                    }
+                )
+                if it.get("status") in ("INTERESTED", "CLOSED"):
+                    new_status = str(it.get("status"))
+                else:
+                    it["status"] = new_status
+                break
+        _save_inbox_store_unlocked(store)
+
+    upsert_crm_contact(
+        item["from_email"],
+        new_status,
+        name=item.get("from_name", ""),
+        subject=item.get("subject", ""),
+        last_message=clean_text,
+    )
+    return {"ok": True, "email": item["from_email"], "sender": sender_display, "id": res.get("id")}
+
+
+def update_inbox_status(item_id: str, status: str) -> dict:
+    """Update status (INTERESTED / CLOSED / BLOCKED) across inbox_messages, CRM, and blacklist."""
+    norm_status = status.strip().upper()
+    if norm_status not in ("INTERESTED", "CLOSED", "BLOCKED", "REPLIED"):
+        raise ValueError("Invalid status.")
+    target_email = ""
+    target_name = ""
+    target_subject = ""
+    target_body = ""
+    with INBOX_LOCK:
+        if not INBOX_PATH.exists():
+            raise ValueError("Inbox is empty.")
+        store = json.loads(INBOX_PATH.read_text(encoding="utf-8"))
+        found = False
+        for it in store.get("items", []):
+            if str(it.get("id")) == str(item_id):
+                it["status"] = norm_status
+                target_email = it.get("from_email", "")
+                target_name = it.get("from_name", "")
+                target_subject = it.get("subject", "")
+                target_body = it.get("body", "")
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Inbox item '{item_id}' not found.")
+        _save_inbox_store_unlocked(store)
+
+    if target_email:
+        upsert_crm_contact(
+            target_email,
+            norm_status,
+            name=target_name,
+            subject=target_subject,
+            last_message=target_body,
+        )
+        if norm_status == "BLOCKED":
+            bl = load_blacklist()
+            bl.add(target_email.lower())
+            save_blacklist(list(bl))
+    return {"ok": True, "email": target_email, "status": norm_status}

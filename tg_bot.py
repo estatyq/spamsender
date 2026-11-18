@@ -13,14 +13,18 @@ import urllib.request
 from core_service import (
     STATE,
     brand_vars,
-    fetch_new_imap_replies,
     find_account,
+    find_inbox_item,
     get_env,
     import_leads_text,
     load_imap_config,
+    load_inbox_store,
+    mark_inbox_notified,
     preview_template_safety,
-    send_reply_email,
+    reply_to_inbox_item,
     start_campaign_async,
+    sync_imap_inbox,
+    update_inbox_status,
 )
 from guardrails import (
     DATA_DIR,
@@ -28,7 +32,6 @@ from guardrails import (
     load_blacklist,
     load_crm_contacts,
     save_blacklist,
-    upsert_crm_contact,
 )
 from mailer import (
     BASE_DIR,
@@ -464,7 +467,7 @@ class TelegramBotRunner:
 
         if data.startswith("rpl:"):
             rid = data.split(":", 1)[1]
-            rep = state["replies"].get(rid)
+            rep = find_inbox_item(rid) or state["replies"].get(rid)
             if rep:
                 state["pending"][str(chat_id)] = {"mode": "reply", "rid": rid}
                 _save_state(state)
@@ -476,45 +479,29 @@ class TelegramBotRunner:
 
         if data.startswith("blk:"):
             rid = data.split(":", 1)[1]
-            rep = state["replies"].get(rid)
-            if rep:
-                bl = load_blacklist()
-                bl.add(rep["from_email"].lower())
-                save_blacklist(list(bl))
-                upsert_crm_contact(
-                    rep["from_email"],
-                    "BLOCKED",
-                    name=rep.get("from_name", ""),
-                    subject=rep.get("subject", ""),
-                )
-                self.send_msg(chat_id, _t(state, chat_id, "blacklist_done", entry=rep["from_email"]))
+            try:
+                res = update_inbox_status(rid, "BLOCKED")
+                self.send_msg(chat_id, _t(state, chat_id, "blacklist_done", entry=res["email"]))
+            except Exception as exc:  # noqa: BLE001
+                self.send_msg(chat_id, _t(state, chat_id, "err_prefix", err=str(exc)))
             return
 
         if data.startswith("lead:"):
             rid = data.split(":", 1)[1]
-            rep = state["replies"].get(rid)
-            if rep:
-                upsert_crm_contact(
-                    rep["from_email"],
-                    "INTERESTED",
-                    name=rep.get("from_name", ""),
-                    subject=rep.get("subject", ""),
-                    last_message=rep.get("body", ""),
-                )
-                self.send_msg(chat_id, _t(state, chat_id, "lead_saved", email=rep["from_email"]))
+            try:
+                res = update_inbox_status(rid, "INTERESTED")
+                self.send_msg(chat_id, _t(state, chat_id, "lead_saved", email=res["email"]))
+            except Exception as exc:  # noqa: BLE001
+                self.send_msg(chat_id, _t(state, chat_id, "err_prefix", err=str(exc)))
             return
 
         if data.startswith("done:"):
             rid = data.split(":", 1)[1]
-            rep = state["replies"].get(rid)
-            if rep:
-                upsert_crm_contact(
-                    rep["from_email"],
-                    "CLOSED",
-                    name=rep.get("from_name", ""),
-                    subject=rep.get("subject", ""),
-                )
-                self.send_msg(chat_id, _t(state, chat_id, "done_saved", email=rep["from_email"]))
+            try:
+                res = update_inbox_status(rid, "CLOSED")
+                self.send_msg(chat_id, _t(state, chat_id, "done_saved", email=res["email"]))
+            except Exception as exc:  # noqa: BLE001
+                self.send_msg(chat_id, _t(state, chat_id, "err_prefix", err=str(exc)))
             return
 
     def _show_wizard_confirm(self, state: dict, chat_id: int, pend: dict) -> None:
@@ -608,7 +595,7 @@ class TelegramBotRunner:
         if reply_to_msg and text:
             map_key = f"{chat_id}:{reply_to_msg.get('message_id')}"
             rid = state.get("tg_msg_map", {}).get(map_key)
-            if rid and rid in state.get("replies", {}):
+            if rid and (find_inbox_item(rid) or rid in state.get("replies", {})):
                 self._send_client_reply(state, chat_id, rid, text)
                 return
 
@@ -779,34 +766,15 @@ class TelegramBotRunner:
             rid = pend.get("rid", "")
             state["pending"].pop(str(chat_id), None)
             _save_state(state)
-            if rid in state.get("replies", {}):
+            if find_inbox_item(rid) or rid in state.get("replies", {}):
                 self._send_client_reply(state, chat_id, rid, text)
             return
 
     def _send_client_reply(self, state: dict, chat_id: int, rid: str, reply_text: str) -> None:
-        """Send threaded email reply and record contact status in CRM."""
-        rep = state["replies"].get(rid)
-        if not rep:
-            return
+        """Send threaded email reply via shared inbox service so Web UI & Telegram stay synced."""
         try:
-            env = get_env()
-            acc = find_account(None, env)
-            send_reply_email(
-                to_email=rep["from_email"],
-                subject=rep["subject"],
-                reply_text=reply_text,
-                in_reply_to=rep.get("message_id", ""),
-                references=rep.get("references", ""),
-            )
-            upsert_crm_contact(
-                rep["from_email"],
-                "REPLIED_BY_US",
-                name=rep.get("from_name", ""),
-                subject=rep.get("subject", ""),
-                last_message=reply_text,
-            )
-            sender = f"{acc['sender_name']} <{acc['sender_email']}>"
-            self.send_msg(chat_id, _t(state, chat_id, "reply_sent", email=rep["from_email"], sender=sender))
+            res = reply_to_inbox_item(rid, reply_text, via="telegram")
+            self.send_msg(chat_id, _t(state, chat_id, "reply_sent", email=res["email"], sender=res["sender"]))
         except Exception as exc:  # noqa: BLE001
             self.send_msg(chat_id, _t(state, chat_id, "err_prefix", err=str(exc)))
 
@@ -815,23 +783,14 @@ class TelegramBotRunner:
             try:
                 state = _load_state()
                 if state["authorized_chats"]:
-                    last_uid = int(state.get("last_imap_uid") or 0)
-                    new_max, replies = fetch_new_imap_replies(last_uid)
-                    if new_max != last_uid or replies:
-                        for rep in replies:
-                            rid = str(state["next_reply_id"])
-                            state["next_reply_id"] += 1
-                            state["replies"][rid] = rep
-                            upsert_crm_contact(
-                                rep["from_email"],
-                                "REPLIED",
-                                name=rep.get("from_name", ""),
-                                subject=rep.get("subject", ""),
-                                last_message=rep.get("body", ""),
-                            )
-                            if len(state["replies"]) > 100:
-                                oldest = sorted(state["replies"].keys(), key=int)[0]
-                                state["replies"].pop(oldest, None)
+                    seed_uid = int(state.get("last_imap_uid") or 0)
+                    sync_imap_inbox(seed_last_uid=seed_uid)
+                    store = load_inbox_store()
+                    unnotified = [it for it in store.get("items", []) if not it.get("notified_tg")]
+                    if unnotified:
+                        notified_ids: list[str] = []
+                        for rep in unnotified:
+                            rid = str(rep["id"])
                             for cid in state["authorized_chats"]:
                                 tg_mid = self.send_msg(
                                     cid,
@@ -862,7 +821,9 @@ class TelegramBotRunner:
                                     if len(state["tg_msg_map"]) > 200:
                                         first_k = next(iter(state["tg_msg_map"]))
                                         state["tg_msg_map"].pop(first_k, None)
-                        state["last_imap_uid"] = new_max
+                            notified_ids.append(rid)
+                        mark_inbox_notified(notified_ids)
+                        state["last_imap_uid"] = int(store.get("last_uid") or seed_uid)
                         _save_state(state)
             except Exception as exc:  # noqa: BLE001
                 print(f"[tg_bot] IMAP poll warning: {exc}")

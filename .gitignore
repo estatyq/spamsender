@@ -4,6 +4,7 @@ accounts.json
 imap_config.json
 tg_state.json
 crm_contacts.json
+inbox_messages.json
 blacklist.txt
 campaign.lock
 __pycache__/

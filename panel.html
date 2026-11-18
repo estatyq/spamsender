@@ -115,6 +115,7 @@
       <button class="tab-btn active" id="tab-btn-send" data-i18n="tab1" onclick="switchTab('send', this)"></button>
       <button class="tab-btn" id="tab-btn-templates" data-i18n="tab2" onclick="switchTab('templates', this)"></button>
       <button class="tab-btn" id="tab-btn-accounts" data-i18n="tab3" onclick="switchTab('accounts', this)"></button>
+      <button class="tab-btn" id="tab-btn-inbox" data-i18n="tab4" onclick="switchTab('inbox', this)"></button>
     </div>
 
     <!-- TAB 1: SEND -->
@@ -200,6 +201,7 @@
                   <tr>
                     <th data-i18n="thEmail"></th>
                     <th data-i18n="thCompany"></th>
+                    <th data-i18n="thPhone"></th>
                     <th data-i18n="thMarket"></th>
                     <th data-i18n="thSite"></th>
                     <th data-i18n="thCityNiche"></th>
@@ -334,6 +336,48 @@
         </div>
       </div>
     </div>
+
+    <!-- TAB 4: INBOX & SENT (SYNCED WITH TELEGRAM) -->
+    <div id="tab-inbox" class="hidden">
+      <div class="grid">
+        <div>
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+              <h2 style="margin:0;" data-i18n="inboxTitle"></h2>
+              <button class="btn btn-primary" data-i18n="syncInboxBtn" onclick="syncInboxNow()"></button>
+            </div>
+            <div id="inbox-sync-status" style="font-size:12px; color:var(--muted); margin-bottom:10px;"></div>
+            <div id="inbox-list"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+              <h2 style="margin:0;"><span data-i18n="sentLogTitle"></span> <span class="pill" id="sent-count-pill">0</span></h2>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="text" id="search-sent" data-i18n-ph="searchSentPh" style="max-width:210px;" oninput="renderInboxDynamic()">
+                <a class="btn btn-ghost" href="/api/sent/export" data-i18n="exportSentBtn" style="text-decoration:none;"></a>
+              </div>
+            </div>
+            <div class="scroll-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th data-i18n="thTime"></th>
+                    <th data-i18n="thEmail"></th>
+                    <th data-i18n="thCompany"></th>
+                    <th data-i18n="thMarket"></th>
+                    <th data-i18n="thStatus"></th>
+                  </tr>
+                </thead>
+                <tbody id="sent-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- CONFIRM MODAL -->
@@ -354,6 +398,8 @@
     let STATE_DATA = null;
     let LAST_LEADS_DATA = null;
     let LAST_SAFETY_RES = null;
+    let LAST_INBOX_DATA = null;
+    let ACTIVE_TAB = 'send';
     let UI_LANG = localStorage.getItem('outreach_ui_lang') || 'ru';
 
     const UI_I18N = {
@@ -370,6 +416,27 @@
         tab1: '1. Запуск рассылки',
         tab2: '2. Шаблоны и Проверка текста',
         tab3: '3. Почты (SMTP/Resend) и Защита',
+        tab4: '4. Входящие и Разосланные',
+        thPhone: 'Телефон / WA / TG',
+        inboxTitle: 'Входящие ответы (синхронно с ботом)',
+        syncInboxBtn: 'Проверить входящие',
+        sentLogTitle: 'Разосланные письма',
+        searchSentPh: 'Поиск по email или компании...',
+        exportSentBtn: 'Скачать CSV',
+        thTime: 'Время',
+        thStatus: 'Статус',
+        inboxEmpty: 'Входящих ответов от клиентов пока нет.',
+        inboxNoImap: 'IMAP не подключён — настройте во вкладке 3, чтобы видеть ответы прямо здесь и в боте.',
+        inboxImapOk: 'Синхронизировано с IMAP ({user}) и ботом Telegram.',
+        replyPh: 'Напишите ответ клиенту...',
+        sendReplyBtn: 'Отправить ответ',
+        leadBtn: '⭐ Лид',
+        doneBtn: '✅ Обработан',
+        sentEmpty: 'Пока нет отправленных писем.',
+        ourReplyPrefix: 'Наш ответ',
+        syncDoneMsg: 'Синхронизация завершена: новых писем {n}',
+        replySentOk: 'Ответ отправлен клиенту {email}',
+        statusSavedOk: 'Статус обновлён: {email} → {st}',
         waveSettings: 'Настройки волны',
         senderChannelLbl: 'От кого отправлять (Канал)',
         sourceBaseLbl: 'База контактов',
@@ -480,6 +547,27 @@
         tab1: '1. Launch Campaign',
         tab2: '2. Templates & Spam Check',
         tab3: '3. Accounts (SMTP/Resend) & Guard',
+        tab4: '4. Inbox & Sent',
+        thPhone: 'Phone / WA / TG',
+        inboxTitle: 'Client Replies (Synced with Bot)',
+        syncInboxBtn: 'Check Inbox',
+        sentLogTitle: 'Sent History',
+        searchSentPh: 'Search email or company...',
+        exportSentBtn: 'Export CSV',
+        thTime: 'Time',
+        thStatus: 'Status',
+        inboxEmpty: 'No client replies yet.',
+        inboxNoImap: 'IMAP not configured — set it in Tab 3 to sync replies here and in Telegram.',
+        inboxImapOk: 'Synced with IMAP ({user}) and Telegram bot.',
+        replyPh: 'Type reply to client...',
+        sendReplyBtn: 'Send Reply',
+        leadBtn: '⭐ Lead',
+        doneBtn: '✅ Done',
+        sentEmpty: 'No sent emails yet.',
+        ourReplyPrefix: 'Our reply',
+        syncDoneMsg: 'Sync finished: {n} new messages',
+        replySentOk: 'Reply sent to {email}',
+        statusSavedOk: 'Status updated: {email} → {st}',
         waveSettings: 'Campaign Settings',
         senderChannelLbl: 'Sender Account (Channel)',
         sourceBaseLbl: 'Contact Database',
@@ -590,6 +678,27 @@
         tab1: '1. Mulai Kampanye',
         tab2: '2. Template & Cek Spam',
         tab3: '3. Akun (SMTP/Resend) & Proteksi',
+        tab4: '4. Kotak Masuk & Terkirim',
+        thPhone: 'Telepon / WA / TG',
+        inboxTitle: 'Balasan Klien (Sinkron dengan Bot)',
+        syncInboxBtn: 'Cek Kotak Masuk',
+        sentLogTitle: 'Riwayat Terkirim',
+        searchSentPh: 'Cari email atau perusahaan...',
+        exportSentBtn: 'Unduh CSV',
+        thTime: 'Waktu',
+        thStatus: 'Status',
+        inboxEmpty: 'Belum ada balasan dari klien.',
+        inboxNoImap: 'IMAP belum diatur — atur di Tab 3 agar balasan masuk ke sini dan ke bot Telegram.',
+        inboxImapOk: 'Tersinkronisasi dengan IMAP ({user}) dan bot Telegram.',
+        replyPh: 'Tulis balasan ke klien...',
+        sendReplyBtn: 'Kirim Balasan',
+        leadBtn: '⭐ Prospek',
+        doneBtn: '✅ Selesai',
+        sentEmpty: 'Belum ada email terkirim.',
+        ourReplyPrefix: 'Balasan kita',
+        syncDoneMsg: 'Sinkronisasi selesai: {n} pesan baru',
+        replySentOk: 'Balasan terkirim ke {email}',
+        statusSavedOk: 'Status diperbarui: {email} → {st}',
         waveSettings: 'Pengaturan Gelombang',
         senderChannelLbl: 'Akun Pengirim (Channel)',
         sourceBaseLbl: 'Database Kontak',
@@ -708,11 +817,13 @@
     }
 
     function switchTab(name, btn) {
+      ACTIVE_TAB = name;
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      ['send', 'templates', 'accounts'].forEach(t => {
+      ['send', 'templates', 'accounts', 'inbox'].forEach(t => {
         document.getElementById('tab-' + t).classList.toggle('hidden', t !== name);
       });
+      if (name === 'inbox') loadInbox();
     }
 
     function renderAlert(elId, type, text) {
@@ -764,6 +875,7 @@
       if (STATE_DATA) renderStateDynamic();
       if (LAST_LEADS_DATA) renderLeadsDynamic();
       if (LAST_SAFETY_RES) renderSafety('safety-box', LAST_SAFETY_RES);
+      if (LAST_INBOX_DATA) renderInboxDynamic();
     }
 
     function renderStateDynamic() {
@@ -851,6 +963,14 @@
       renderStateDynamic();
     }
 
+    function phoneCellHtml(rawPhone) {
+      const p = String(rawPhone || '').trim();
+      if (!p) return '<span style="color:var(--muted);">—</span>';
+      const digits = p.replace(/\D+/g, '');
+      if (digits.length < 7) return escapeHtml(p);
+      return `${escapeHtml(p)}<br><a href="https://wa.me/${digits}" target="_blank" rel="noopener" class="pill ok" style="text-decoration:none;margin-top:3px;">WA</a> <a href="https://t.me/+${digits}" target="_blank" rel="noopener" class="pill" style="text-decoration:none;margin-top:3px;color:#93c5fd;">TG</a>`;
+    }
+
     function renderLeadsDynamic() {
       const data = LAST_LEADS_DATA;
       const t = T();
@@ -866,11 +986,12 @@
         <tr>
           <td>${escapeHtml(r.email)}</td>
           <td>${escapeHtml(r.company)}</td>
+          <td>${phoneCellHtml(r.phone)}</td>
           <td><span class="pill">${escapeHtml(r.market || '-')}</span></td>
           <td>${escapeHtml(r.site_status)}</td>
           <td>${escapeHtml([r.city, r.niche].filter(Boolean).join(' · '))}</td>
         </tr>
-      `).join('') || `<tr><td colspan="5" style="color:var(--muted);">${escapeHtml(t.noContacts)}</td></tr>`;
+      `).join('') || `<tr><td colspan="6" style="color:var(--muted);">${escapeHtml(t.noContacts)}</td></tr>`;
     }
 
     async function loadLeads() {
@@ -1126,15 +1247,124 @@
       }
     }
 
+    async function loadInbox() {
+      LAST_INBOX_DATA = await api('/api/inbox');
+      renderInboxDynamic();
+    }
+
+    function renderInboxDynamic() {
+      const data = LAST_INBOX_DATA;
+      if (!data) return;
+      const t = T();
+
+      document.getElementById('inbox-sync-status').textContent = data.imap_configured
+        ? fmt(t.inboxImapOk, { user: data.imap_user })
+        : t.inboxNoImap;
+
+      const items = data.items || [];
+      document.getElementById('inbox-list').innerHTML = items.length ? items.map(it => {
+        const ourReplies = (it.our_replies || []).map(r =>
+          `<div style="margin-top:6px;padding:8px;border-radius:6px;background:#0f172a;border:1px solid #1e3a8a;font-size:12px;"><strong>${escapeHtml(t.ourReplyPrefix)} (${escapeHtml(r.via || 'web')}):</strong><br>${escapeHtml(r.text)}</div>`
+        ).join('');
+        return `
+          <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;background:#0b0e14;">
+            <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+              <div><strong>${escapeHtml(it.from_name || it.from_email)}</strong> &lt;${escapeHtml(it.from_email)}&gt;</div>
+              <span class="pill ${it.status === 'INTERESTED' ? 'ok' : ''}">${escapeHtml(it.status || 'REPLIED')}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${escapeHtml(it.subject)}</div>
+            <div style="font-size:13px;white-space:pre-wrap;max-height:140px;overflow:auto;">${escapeHtml(it.body)}</div>
+            ${ourReplies}
+            <div style="margin-top:8px;">
+              <textarea id="reply-box-${escapeHtml(it.id)}" placeholder="${escapeHtml(t.replyPh)}" style="min-height:60px;"></textarea>
+              <div class="btn-row">
+                <button class="btn btn-primary" data-id="${escapeHtml(it.id)}" onclick="sendWebReply(this.dataset.id)">${escapeHtml(t.sendReplyBtn)}</button>
+                <button class="btn btn-green" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'INTERESTED')">${escapeHtml(t.leadBtn)}</button>
+                <button class="btn btn-ghost" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'CLOSED')">${escapeHtml(t.doneBtn)}</button>
+                <button class="btn btn-red" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'BLOCKED')">${escapeHtml(t.blockBtn)}</button>
+              </div>
+              <div id="inbox-item-msg-${escapeHtml(it.id)}"></div>
+            </div>
+          </div>
+        `;
+      }).join('') : `<div style="font-size:13px;color:var(--muted);">${escapeHtml(t.inboxEmpty)}</div>`;
+
+      const q = (document.getElementById('search-sent').value || '').trim().toLowerCase();
+      const sentFiltered = (data.sent || []).filter(s =>
+        !q || String(s.email || '').toLowerCase().includes(q) || String(s.company || '').toLowerCase().includes(q)
+      );
+      document.getElementById('sent-count-pill').textContent = (data.sent || []).length;
+      document.getElementById('sent-tbody').innerHTML = sentFiltered.map(s => `
+        <tr>
+          <td>${escapeHtml(String(s.sent_at || '').slice(0, 16).replace('T', ' '))}</td>
+          <td>${escapeHtml(s.email || '')}</td>
+          <td>${escapeHtml(s.company || '')}</td>
+          <td><span class="pill">${escapeHtml(s.market || '-')}</span></td>
+          <td><span class="pill ${s.status === 'sent' ? 'ok' : ''}">${escapeHtml(s.status || '')}</span></td>
+        </tr>
+      `).join('') || `<tr><td colspan="5" style="color:var(--muted);">${escapeHtml(t.sentEmpty)}</td></tr>`;
+    }
+
+    async function syncInboxNow() {
+      const t = T();
+      try {
+        const res = await api('/api/inbox/sync', { method: 'POST', body: '{}' });
+        document.getElementById('inbox-sync-status').textContent = fmt(t.syncDoneMsg, { n: res.added });
+        await loadInbox();
+      } catch (e) {
+        renderAlert('inbox-sync-status', 'err', e.message);
+      }
+    }
+
+    async function sendWebReply(id) {
+      const t = T();
+      const box = document.getElementById('reply-box-' + id);
+      try {
+        const res = await api('/api/inbox/reply', {
+          method: 'POST',
+          body: JSON.stringify({
+            id,
+            text: box.value,
+            account_id: document.getElementById('account-select').value,
+          }),
+        });
+        box.value = '';
+        renderAlert('inbox-item-msg-' + id, 'ok', fmt(t.replySentOk, { email: res.email }));
+        await loadInbox();
+      } catch (e) {
+        renderAlert('inbox-item-msg-' + id, 'err', e.message);
+      }
+    }
+
+    async function setInboxStatus(id, status) {
+      const t = T();
+      try {
+        const res = await api('/api/inbox/status', {
+          method: 'POST',
+          body: JSON.stringify({ id, status }),
+        });
+        renderAlert('inbox-item-msg-' + id, 'ok', fmt(t.statusSavedOk, { email: res.email, st: res.status }));
+        await loadInbox();
+        await loadState();
+        await loadLeads();
+      } catch (e) {
+        renderAlert('inbox-item-msg-' + id, 'err', e.message);
+      }
+    }
+
     (async () => {
       setUiLang(UI_LANG);
       await loadState();
       await loadLeads();
+      await loadInbox();
       setInterval(() => {
         if (STATE_DATA && STATE_DATA.campaign && STATE_DATA.campaign.running) {
           loadState();
         }
-      }, 2500);
+        if (ACTIVE_TAB === 'inbox') {
+          loadInbox();
+        }
+      }, 3000);
     })();
   </script>
 </body>
