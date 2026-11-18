@@ -44,7 +44,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "ru": {
         "choose_lang": "🌐 Выберите язык интерфейса бота:",
         "lang_saved": "Язык переключён на Русский.",
-        "ask_pin": "🔐 Введите код доступа (из .env `TG_ACCESS_CODE`), чтобы активировать бота:",
+        "ask_pin": "🔐 Введите ПИН-код доступа (4 цифры), чтобы открыть бота:",
         "bad_pin": "❌ Неверный код. Попробуйте ещё раз:",
         "auth_ok": "✅ Доступ открыт!",
         "menu_title": "📬 Панель управления рассылкой\nКанал: {sender}\nСегодня отправлено: {today} | Всего: {total}\nСтатус: {status}",
@@ -91,7 +91,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "en": {
         "choose_lang": "🌐 Choose bot interface language:",
         "lang_saved": "Language switched to English.",
-        "ask_pin": "🔐 Enter access PIN (from `.env` `TG_ACCESS_CODE`) to unlock the bot:",
+        "ask_pin": "🔐 Enter the 4-digit access PIN to unlock the bot:",
         "bad_pin": "❌ Wrong PIN. Please try again:",
         "auth_ok": "✅ Access granted!",
         "menu_title": "📬 Outreach Control Panel\nSender: {sender}\nSent today: {today} | Total: {total}\nStatus: {status}",
@@ -138,7 +138,7 @@ STRINGS: dict[str, dict[str, str]] = {
     "id": {
         "choose_lang": "🌐 Pilih bahasa antarmuka bot:",
         "lang_saved": "Bahasa diubah ke Bahasa Indonesia.",
-        "ask_pin": "🔐 Masukkan kode akses (`TG_ACCESS_CODE` di `.env`) untuk membuka bot:",
+        "ask_pin": "🔐 Masukkan kode PIN akses (4 digit) untuk membuka bot:",
         "bad_pin": "❌ Kode salah. Silakan coba lagi:",
         "auth_ok": "✅ Akses diterima!",
         "menu_title": "📬 Panel Kontrol Email Outreach\nPengirim: {sender}\nTerkirim hari ini: {today} | Total: {total}\nStatus: {status}",
