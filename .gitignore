@@ -1,5 +1,8 @@
 .env
 sent_log.json
+accounts.json
+blacklist.txt
+campaign.lock
 __pycache__/
 *.pyc
 leads_ready.csv

@@ -1,6 +1,6 @@
 # Email Outreach Sender
 
-Safe cold email outreach tool via the Resend API (`https://resend.com`) with DNS MX pre-validation and spintax support.
+Safe cold email outreach tool via the Resend API (`https://resend.com`) or custom SMTP with web dashboard, DNS MX pre-validation, spintax support, and multi-layer anti-spam guardrails.
 
 ## Setup
 
@@ -23,7 +23,22 @@ Safe cold email outreach tool via the Resend API (`https://resend.com`) with DNS
    ```
    This builds `leads_ready.csv` with MX-verified email domains.
 
-## Usage
+## Web Dashboard (Recommended)
+
+Double-click `start_panel.bat` or run:
+```bash
+python panel.py
+```
+Opens `http://127.0.0.1:8787` in your browser with:
+- Visual queue filtering (`EN` / `ID` / `UA`, `no_site` / `has_site`) and live search
+- Manual lead import with automatic DNS MX validation
+- Preflight anti-spam text checker (broken braces, spam triggers, ALL CAPS, URL shorteners)
+- Forced safe pacing limits (min 45s delay, daily caps for Resend and SMTP)
+- Circuit breaker (auto-stops after 3 consecutive send failures)
+- Blacklist manager (`blacklist.txt`) and same-day corporate domain cooldown
+- Custom SMTP support (e.g. Gmail App Password) alongside Resend API
+
+## CLI Usage
 
 ```bash
 # Send one test email
