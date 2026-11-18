@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+import datetime as dt
+import json
 import os
 import re
 import string
@@ -11,6 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = Path(os.environ.get("DATA_DIR") or BASE_DIR)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 BLACKLIST_PATH = DATA_DIR / "blacklist.txt"
+CRM_PATH = DATA_DIR / "crm_contacts.json"
 
 PLACEHOLDER_RE = re.compile(r"\{([^{}]+)\}")
 URL_RE = re.compile(r"https?://[^\s<>\"]+", re.IGNORECASE)
@@ -242,3 +245,47 @@ def check_message_safety(
         "warnings": warnings,
         "spam_score": min(100, score),
     }
+
+
+def load_crm_contacts(path: Path = CRM_PATH) -> dict[str, dict]:
+    """Load replied/tracked contacts keyed by lowercase email from crm_contacts.json."""
+    if not path.exists():
+        return {}
+    raw = path.read_text(encoding="utf-8").strip()
+    if not raw:
+        return {}
+    data = json.loads(raw)
+    return data if isinstance(data, dict) else {}
+
+
+def upsert_crm_contact(
+    email: str,
+    status: str,
+    name: str = "",
+    subject: str = "",
+    last_message: str = "",
+    path: Path = CRM_PATH,
+) -> dict:
+    """Create or update a replied/tracked contact in crm_contacts.json."""
+    norm = email.strip().lower()
+    if not norm:
+        return {}
+    contacts = load_crm_contacts(path)
+    existing = contacts.get(norm, {})
+    now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
+    entry = {
+        "email": norm,
+        "name": name or existing.get("name", ""),
+        "status": status,
+        "subject": subject or existing.get("subject", ""),
+        "last_message": (last_message or existing.get("last_message", ""))[:500],
+        "updated_at": now_iso,
+    }
+    contacts[norm] = entry
+    path.write_text(json.dumps(contacts, ensure_ascii=False, indent=2), encoding="utf-8")
+    return entry
+
+
+def load_crm_blocked_emails(path: Path = CRM_PATH) -> set[str]:
+    """Return lowercase emails already in active CRM dialog/status so cold batches skip them."""
+    return set(load_crm_contacts(path).keys())

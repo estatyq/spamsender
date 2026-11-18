@@ -22,7 +22,14 @@ from core_service import (
     send_reply_email,
     start_campaign_async,
 )
-from guardrails import DATA_DIR, check_message_safety, load_blacklist, save_blacklist
+from guardrails import (
+    DATA_DIR,
+    check_message_safety,
+    load_blacklist,
+    load_crm_contacts,
+    save_blacklist,
+    upsert_crm_contact,
+)
 from mailer import (
     BASE_DIR,
     LEADS_READY_PATH,
@@ -62,6 +69,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "btn_confirm": "✅ Подтвердить и запустить",
         "btn_reply": "💬 Ответить",
         "btn_block_sender": "🚫 В стоп-лист",
+        "btn_lead": "⭐ Лид (в работу)",
+        "btn_done": "✅ Обработан",
+        "lead_saved": "⭐ Контакт `{email}` зафиксирован как Лид (больше не попадёт в холодную рассылку).",
+        "done_saved": "✅ Контакт `{email}` отмечен как Обработан.",
         "wiz_market": "Шаг 1/3 — Выберите рынок базы:",
         "wiz_site": "Шаг 2/3 — Фильтр по сайту компании:",
         "wiz_limit": "Шаг 3/3 — Сколько писем отправить в этой волне?",
@@ -83,7 +94,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "blacklist_done": "✅ Добавлено в стоп-лист: `{entry}`",
         "inbox_not_cfg": "📩 Входящие ответы пока приходят на ваш Email (`{reply_to}`).\n\nЧтобы ответы клиентов приходили прямо сюда в Telegram и на них можно было отвечать из чата, укажите в веб-панели (вкладка 3 → IMAP) или в `.env` почту и 16-символьный пароль приложения Gmail.",
         "inbox_ready": "📩 Подключён ящик входящих: `{user}`.\nНовые ответы клиентов автоматически приходят сюда с кнопкой «💬 Ответить».",
-        "new_reply": "📩 Новый ответ от клиента!\nОт: {name} <{email}>\nТема: {subject}\n\n{body}",
+        "new_reply": "📩 Новый ответ от клиента!\nОт: {name} <{email}>\nТема: {subject}\n\n{body}\n\n💡 Можете просто ответить свайпом на это сообщение или нажать «💬 Ответить».",
         "ask_reply_text": "✍️ Напишите текст ответа для `{email}` (тема: {subject}):",
         "reply_sent": "✅ Ответ отправлен клиенту `{email}` от имени `{sender}`!",
         "err_prefix": "❌ Ошибка: {err}",
@@ -109,6 +120,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "btn_confirm": "✅ Confirm & Start",
         "btn_reply": "💬 Reply",
         "btn_block_sender": "🚫 Blacklist",
+        "btn_lead": "⭐ Mark Lead",
+        "btn_done": "✅ Mark Done",
+        "lead_saved": "⭐ Saved `{email}` as Lead (excluded from future cold blasts).",
+        "done_saved": "✅ Marked `{email}` as Done.",
         "wiz_market": "Step 1/3 — Select target market:",
         "wiz_site": "Step 2/3 — Filter by company website:",
         "wiz_limit": "Step 3/3 — How many emails to send in this batch?",
@@ -130,7 +145,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "blacklist_done": "✅ Added to blacklist: `{entry}`",
         "inbox_not_cfg": "📩 Replies currently arrive at `{reply_to}`.\n\nTo receive & reply to client emails directly inside Telegram, configure `IMAP_USER` and `IMAP_PASSWORD` (Gmail App Password) in the web panel or `.env`.",
         "inbox_ready": "📩 Inbox connected: `{user}`.\nNew client replies will appear here automatically with a «💬 Reply» button.",
-        "new_reply": "📩 New client reply!\nFrom: {name} <{email}>\nSubject: {subject}\n\n{body}",
+        "new_reply": "📩 New client reply!\nFrom: {name} <{email}>\nSubject: {subject}\n\n{body}\n\n💡 Swipe-reply directly to this message or tap «💬 Reply».",
         "ask_reply_text": "✍️ Type your reply to `{email}` (Subject: {subject}):",
         "reply_sent": "✅ Reply sent to `{email}` as `{sender}`!",
         "err_prefix": "❌ Error: {err}",
@@ -156,6 +171,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "btn_confirm": "✅ Konfirmasi & Mulai",
         "btn_reply": "💬 Balas",
         "btn_block_sender": "🚫 Blokir",
+        "btn_lead": "⭐ Tandai Prospek",
+        "btn_done": "✅ Selesai",
+        "lead_saved": "⭐ `{email}` ditandai sebagai Prospek (tidak akan dikirimi blast lagi).",
+        "done_saved": "✅ `{email}` ditandai Selesai.",
         "wiz_market": "Langkah 1/3 — Pilih target pasar:",
         "wiz_site": "Langkah 2/3 — Filter status website:",
         "wiz_limit": "Langkah 3/3 — Jumlah maksimal email gelombang ini:",
@@ -177,7 +196,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "blacklist_done": "✅ Ditambahkan ke daftar hitam: `{entry}`",
         "inbox_not_cfg": "📩 Balasan klien saat ini masuk ke `{reply_to}`.\n\nAgar balasan masuk langsung ke Telegram dan bisa dibalas dari chat ini, isi `IMAP_USER` & `IMAP_PASSWORD` (App Password Gmail) di panel web atau `.env`.",
         "inbox_ready": "📩 Kotak masuk terhubung: `{user}`.\nBalasan baru akan muncul otomatis di sini dengan tombol «💬 Balas».",
-        "new_reply": "📩 Balasan baru dari klien!\nDari: {name} <{email}>\nSubjek: {subject}\n\n{body}",
+        "new_reply": "📩 Balasan baru dari klien!\nDari: {name} <{email}>\nSubjek: {subject}\n\n{body}\n\n💡 Geser pesan ini untuk membalas langsung atau tekan «💬 Balas».",
         "ask_reply_text": "✍️ Ketik balasan untuk `{email}` (Subjek: {subject}):",
         "reply_sent": "✅ Balasan terkirim ke `{email}` atas nama `{sender}`!",
         "err_prefix": "❌ Error: {err}",
@@ -194,6 +213,7 @@ def _load_state() -> dict:
                 "pending": {},
                 "last_imap_uid": 0,
                 "replies": {},
+                "tg_msg_map": {},
                 "next_reply_id": 1,
             }
         data = json.loads(TG_STATE_PATH.read_text(encoding="utf-8"))
@@ -202,6 +222,7 @@ def _load_state() -> dict:
         data.setdefault("pending", {})
         data.setdefault("last_imap_uid", 0)
         data.setdefault("replies", {})
+        data.setdefault("tg_msg_map", {})
         data.setdefault("next_reply_id", 1)
         return data
 
@@ -245,14 +266,16 @@ class TelegramBotRunner:
         with urllib.request.urlopen(url, timeout=20) as resp:
             return resp.read().decode("utf-8-sig", errors="replace")
 
-    def send_msg(self, chat_id: int, text: str, reply_markup: dict | None = None) -> None:
+    def send_msg(self, chat_id: int, text: str, reply_markup: dict | None = None) -> int | None:
         payload: dict[str, object] = {"chat_id": chat_id, "text": text[:4000]}
         if reply_markup is not None:
             payload["reply_markup"] = reply_markup
         try:
-            self._call("sendMessage", payload, timeout=15)
+            resp = self._call("sendMessage", payload, timeout=15)
+            return resp.get("result", {}).get("message_id")
         except Exception as exc:  # noqa: BLE001
             print(f"[tg_bot] sendMessage error: {exc}")
+            return None
 
     def answer_cb(self, callback_id: str) -> None:
         try:
@@ -452,7 +475,40 @@ class TelegramBotRunner:
                 bl = load_blacklist()
                 bl.add(rep["from_email"].lower())
                 save_blacklist(list(bl))
+                upsert_crm_contact(
+                    rep["from_email"],
+                    "BLOCKED",
+                    name=rep.get("from_name", ""),
+                    subject=rep.get("subject", ""),
+                )
                 self.send_msg(chat_id, _t(state, chat_id, "blacklist_done", entry=rep["from_email"]))
+            return
+
+        if data.startswith("lead:"):
+            rid = data.split(":", 1)[1]
+            rep = state["replies"].get(rid)
+            if rep:
+                upsert_crm_contact(
+                    rep["from_email"],
+                    "INTERESTED",
+                    name=rep.get("from_name", ""),
+                    subject=rep.get("subject", ""),
+                    last_message=rep.get("body", ""),
+                )
+                self.send_msg(chat_id, _t(state, chat_id, "lead_saved", email=rep["from_email"]))
+            return
+
+        if data.startswith("done:"):
+            rid = data.split(":", 1)[1]
+            rep = state["replies"].get(rid)
+            if rep:
+                upsert_crm_contact(
+                    rep["from_email"],
+                    "CLOSED",
+                    name=rep.get("from_name", ""),
+                    subject=rep.get("subject", ""),
+                )
+                self.send_msg(chat_id, _t(state, chat_id, "done_saved", email=rep["from_email"]))
             return
 
     def _show_wizard_confirm(self, state: dict, chat_id: int, pend: dict) -> None:
@@ -541,6 +597,15 @@ class TelegramBotRunner:
                 self.send_msg(chat_id, _t(state, chat_id, "bad_pin"))
             return
 
+        # Instant swipe-reply in Telegram to any forwarded client message
+        reply_to_msg = msg.get("reply_to_message")
+        if reply_to_msg and text:
+            map_key = f"{chat_id}:{reply_to_msg.get('message_id')}"
+            rid = state.get("tg_msg_map", {}).get(map_key)
+            if rid and rid in state.get("replies", {}):
+                self._send_client_reply(state, chat_id, rid, text)
+                return
+
         # Language button across any active language
         if text in {b["btn_lang"] for b in STRINGS.values()}:
             self.send_msg(chat_id, _t(state, chat_id, "choose_lang"), reply_markup=self._lang_inline())
@@ -602,11 +667,16 @@ class TelegramBotRunner:
 
         if text in {b["btn_inbox"] for b in STRINGS.values()}:
             imap_cfg = load_imap_config()
+            crm = load_crm_contacts()
+            crm_lines = []
+            for entry in sorted(crm.values(), key=lambda x: x.get("updated_at", ""), reverse=True)[:10]:
+                crm_lines.append(f"• {entry['email']} [{entry.get('status', 'REPLIED')}] — {entry.get('subject', '')[:45]}")
+            crm_block = ("\n\n📋 CRM:\n" + "\n".join(crm_lines)) if crm_lines else ""
             if imap_cfg.get("user") and imap_cfg.get("password"):
-                self.send_msg(chat_id, _t(state, chat_id, "inbox_ready", user=imap_cfg["user"]))
+                self.send_msg(chat_id, _t(state, chat_id, "inbox_ready", user=imap_cfg["user"]) + crm_block)
             else:
                 reply_to = get_env().get("REPLY_TO_EMAIL") or get_env().get("SENDER_EMAIL") or "-"
-                self.send_msg(chat_id, _t(state, chat_id, "inbox_not_cfg", reply_to=reply_to))
+                self.send_msg(chat_id, _t(state, chat_id, "inbox_not_cfg", reply_to=reply_to) + crm_block)
             return
 
         # Pending interactive input states
@@ -694,26 +764,38 @@ class TelegramBotRunner:
 
         if mode == "reply" and text:
             rid = pend.get("rid", "")
-            rep = state["replies"].get(rid)
             state["pending"].pop(str(chat_id), None)
             _save_state(state)
-            if not rep:
-                return
-            try:
-                env = get_env()
-                acc = find_account(None, env)
-                send_reply_email(
-                    to_email=rep["from_email"],
-                    subject=rep["subject"],
-                    reply_text=text,
-                    in_reply_to=rep.get("message_id", ""),
-                    references=rep.get("references", ""),
-                )
-                sender = f"{acc['sender_name']} <{acc['sender_email']}>"
-                self.send_msg(chat_id, _t(state, chat_id, "reply_sent", email=rep["from_email"], sender=sender))
-            except Exception as exc:  # noqa: BLE001
-                self.send_msg(chat_id, _t(state, chat_id, "err_prefix", err=str(exc)))
+            if rid in state.get("replies", {}):
+                self._send_client_reply(state, chat_id, rid, text)
             return
+
+    def _send_client_reply(self, state: dict, chat_id: int, rid: str, reply_text: str) -> None:
+        """Send threaded email reply and record contact status in CRM."""
+        rep = state["replies"].get(rid)
+        if not rep:
+            return
+        try:
+            env = get_env()
+            acc = find_account(None, env)
+            send_reply_email(
+                to_email=rep["from_email"],
+                subject=rep["subject"],
+                reply_text=reply_text,
+                in_reply_to=rep.get("message_id", ""),
+                references=rep.get("references", ""),
+            )
+            upsert_crm_contact(
+                rep["from_email"],
+                "REPLIED_BY_US",
+                name=rep.get("from_name", ""),
+                subject=rep.get("subject", ""),
+                last_message=reply_text,
+            )
+            sender = f"{acc['sender_name']} <{acc['sender_email']}>"
+            self.send_msg(chat_id, _t(state, chat_id, "reply_sent", email=rep["from_email"], sender=sender))
+        except Exception as exc:  # noqa: BLE001
+            self.send_msg(chat_id, _t(state, chat_id, "err_prefix", err=str(exc)))
 
     def _imap_poll_loop(self) -> None:
         while not self.stop_event.is_set():
@@ -727,12 +809,18 @@ class TelegramBotRunner:
                             rid = str(state["next_reply_id"])
                             state["next_reply_id"] += 1
                             state["replies"][rid] = rep
-                            # Keep recent 100 replies in tg_state.json
+                            upsert_crm_contact(
+                                rep["from_email"],
+                                "REPLIED",
+                                name=rep.get("from_name", ""),
+                                subject=rep.get("subject", ""),
+                                last_message=rep.get("body", ""),
+                            )
                             if len(state["replies"]) > 100:
                                 oldest = sorted(state["replies"].keys(), key=int)[0]
                                 state["replies"].pop(oldest, None)
                             for cid in state["authorized_chats"]:
-                                self.send_msg(
+                                tg_mid = self.send_msg(
                                     cid,
                                     _t(
                                         state,
@@ -747,11 +835,20 @@ class TelegramBotRunner:
                                         "inline_keyboard": [
                                             [
                                                 {"text": _t(state, cid, "btn_reply"), "callback_data": f"rpl:{rid}"},
+                                                {"text": _t(state, cid, "btn_lead"), "callback_data": f"lead:{rid}"},
+                                            ],
+                                            [
+                                                {"text": _t(state, cid, "btn_done"), "callback_data": f"done:{rid}"},
                                                 {"text": _t(state, cid, "btn_block_sender"), "callback_data": f"blk:{rid}"},
-                                            ]
+                                            ],
                                         ]
                                     },
                                 )
+                                if tg_mid:
+                                    state["tg_msg_map"][f"{cid}:{tg_mid}"] = rid
+                                    if len(state["tg_msg_map"]) > 200:
+                                        first_k = next(iter(state["tg_msg_map"]))
+                                        state["tg_msg_map"].pop(first_k, None)
                         state["last_imap_uid"] = new_max
                         _save_state(state)
             except Exception as exc:  # noqa: BLE001

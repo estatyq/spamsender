@@ -29,6 +29,7 @@ from guardrails import (
     enforce_safe_pacing,
     is_blacklisted,
     load_blacklist,
+    load_crm_blocked_emails,
 )
 
 ENV_PATH = BASE_DIR / ".env"
@@ -445,6 +446,7 @@ def filter_queue(
     """Build deduplicated, blacklist-checked queue from CSV."""
     sent_log = load_sent_log(SENT_LOG_PATH)
     blacklist = load_blacklist()
+    crm_emails = load_crm_blocked_emails()
     already_sent = {
         str(item.get("email", "")).strip().lower()
         for item in sent_log
@@ -483,7 +485,7 @@ def filter_queue(
             continue
         if norm_site != "ALL" and contact["site_status"] != norm_site:
             continue
-        if email in already_sent:
+        if email in already_sent or email in crm_emails:
             skipped_sent += 1
             continue
         if is_blacklisted(email, blacklist):
