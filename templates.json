@@ -1,0 +1,51 @@
+{
+  "by_key": {
+    "EN:no_site": {
+      "id": "en_no_site",
+      "subject": "Website & automated booking system for {company}",
+      "body": "{Hi|Hello|Good day}!\n\nFound {company} in the local directory and noticed you don't have a website yet.\n\nWe're {brand_url} — we build fast conversion-focused websites, 24/7 WhatsApp/Telegram AI bots, and custom CRM systems that automate client inquiries and bookings without manual copy-paste.\n\nWould it make sense to share a couple of quick examples for your business?\n\nBest regards,\n{brand_name} Team"
+    },
+    "EN:has_site": {
+      "id": "en_crm_bot",
+      "subject": "24/7 AI WhatsApp assistant & CRM automation for {company}",
+      "body": "{Hi|Hello}!\n\nReached out after seeing {company} online.\n\nAt {brand_url} we build 24/7 WhatsApp/Telegram AI assistants, custom CRM systems, and workflow automations so leads never wait for a reply outside working hours.\n\nOpen to seeing a quick 2-minute demo of how this works for service businesses?\n\nBest regards,\n{brand_name} Team"
+    },
+    "ID:no_site": {
+      "id": "id_no_site",
+      "subject": "Pembuatan Website & Bot WhatsApp Otomatis untuk {company}",
+      "body": "{Halo|Selamat siang|Permisi} tim {company}!\n\nKami melihat profil bisnis Anda dan melihat belum ada website resmi.\n\nKami dari {brand_url} — membantu bisnis membuat website profesional, bot WhatsApp/Telegram otomatis 24/7 untuk balas chat & booking pelanggan, serta sistem CRM agar orderan tidak tercecer.\n\nBoleh kami kirimkan beberapa contoh portofolio dan estimasi biayanya?\n\nSalam,\nTim {brand_name}"
+    },
+    "ID:has_site": {
+      "id": "id_crm_bot",
+      "subject": "AI Chatbot WhatsApp & Sistem CRM untuk {company}",
+      "body": "{Halo|Selamat siang} tim {company}!\n\nKami dari {brand_url} spesialis pembuatan AI Chatbot WhatsApp/Telegram, sistem CRM custom, dan otomatisasi bisnis.\n\nCocok untuk bisnis yang ingin membalas pertanyaan pelanggan otomatis 24 jam tanpa admin kewalahan.\n\nApakah tertarik jika kami kirimkan demo singkatnya?\n\nSalam,\nTim {brand_name}"
+    },
+    "UA:no_site": {
+      "id": "ua_no_site",
+      "subject": "Розробка сайту та автоматизація заявок для {company}",
+      "body": "{Вітаю|Доброго дня}!\n\nЗнайшли компанію {company} у бізнес-довіднику й звернули увагу, що у вас ще немає власного сайту.\n\nМи команда {brand_url} — розробляємо сучасні сайти під ключ, Telegram/Viber/WhatsApp-ботів для прийому заявок 24/7, CRM-системи та автоматизацію рутини.\n\nЧи було б вам цікаво переглянути приклади робіт та дізнатися деталі?\n\nЗ повагою,\nКоманда {brand_name}"
+    },
+    "UA:has_site": {
+      "id": "ua_crm_bot",
+      "subject": "AI-бот і CRM для {company}",
+      "body": "{Вітаю|Доброго дня}!\n\nМи в {brand_url} створюємо AI-асистентів у месенджерах, кастомні CRM-системи та автоматизації для сервісного бізнесу, щоб заявки клієнтів не губилися в чатах.\n\nПідкажіть, чи актуально зараз оптимізувати прийом заявок і роботу менеджерів?\n\nЗ повагою,\nКоманда {brand_name}"
+    }
+  },
+  "extra": {
+    "en_short": {
+      "id": "en_short",
+      "subject": "Quick question for {company}",
+      "body": "{Hi|Hello}!\n\nQuick question for {company} — are you currently looking to set up a website or automate client bookings/inquiries via WhatsApp/Telegram?\n\nWe build custom websites, AI bots & CRM tools at {brand_url}. Happy to send a few live examples if relevant!\n\nBest,\n{brand_name}"
+    },
+    "id_en_bali": {
+      "id": "id_en_bali",
+      "subject": "Website & WhatsApp booking automation for {company}",
+      "body": "{Hi|Hello} {company} team!\n\nReaching out from {brand_url} — we build custom websites, 24/7 WhatsApp booking bots, and CRM automations for businesses in Indonesia.\n\nWould you be interested in a quick look at how a website + automated WhatsApp assistant can bring more bookings?\n\nBest regards,\n{brand_name} Team"
+    },
+    "ru_no_site": {
+      "id": "ru_no_site",
+      "subject": "Сайт и автоматизация заявок для {company}",
+      "body": "{Здравствуйте|Добрый день}!\n\nНашли компанию {company} в каталоге и увидели, что у вас пока нет сайта.\n\nМы в {brand_url} делаем сайты, ботов для WhatsApp/Telegram и кастомные CRM-системы с автоматизацией под задачи бизнеса.\n\nПодскажите, актуально ли обсудить создание сайта или автоматизацию заявок?\n\nС уважением,\nКоманда {brand_name}"
+    }
+  }
+}
