@@ -8,8 +8,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import io
 import json
 import os
+import sys
 import threading
 from urllib.parse import parse_qs, urlparse
+import urllib.request
 import webbrowser
 
 from core_service import (
@@ -28,6 +30,7 @@ from core_service import (
     save_imap_config,
     start_campaign_async,
     sync_imap_inbox,
+    update_env_vars,
     update_inbox_status,
 )
 from guardrails import (
@@ -55,11 +58,141 @@ from mailer import (
     send_via_account,
     test_smtp_connection,
 )
-from tg_bot import start_bot_in_background
+from tg_bot import (
+    TelegramBotRunner,
+    fetch_bot_info,
+    get_cached_tg_summary,
+    send_bot_ping,
+    start_bot_in_background,
+)
 
 PANEL_HTML_PATH = BASE_DIR / "panel.html"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("PANEL_PORT", "8787"))
+
+BOT_CTRL_LOCK = threading.Lock()
+BOT_RUNTIME: dict[str, object] = {
+    "runner": None,
+    "configured_mode": "auto",
+    "conflict_yielded": False,
+    "bot_info": {},
+}
+
+
+def resolve_configured_tg_mode(env: dict[str, str], argv: list[str] | None = None) -> str:
+    """Resolve Telegram bot polling mode from CLI flags and .env."""
+    args = argv or []
+    token = env.get("TG_BOT_TOKEN", "").strip()
+    if not token:
+        return "off"
+    if "--no-bot" in args:
+        return "remote"
+    if "--bot" in args:
+        return "local"
+    raw = env.get("TG_BOT_MODE", "auto").strip().lower()
+    if raw in ("remote", "server", "ui", "panel", "0", "false", "no"):
+        return "remote"
+    if raw in ("local", "poll", "1", "true", "yes"):
+        return "local"
+    if raw in ("off", "disabled", "none"):
+        return "off"
+    return "auto"
+
+
+def _remote_panel_alive(env: dict[str, str]) -> bool:
+    """Check optional REMOTE_PANEL_URL health before starting local bot polling."""
+    remote_url = env.get("REMOTE_PANEL_URL", "").strip().rstrip("/")
+    if not remote_url:
+        return False
+    try:
+        with urllib.request.urlopen(f"{remote_url}/api/state", timeout=2) as resp:
+            return resp.status == 200
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _on_bot_conflict() -> None:
+    """Yield local bot polling automatically if the server bot is active (409 Conflict)."""
+    with BOT_CTRL_LOCK:
+        BOT_RUNTIME["conflict_yielded"] = True
+        BOT_RUNTIME["runner"] = None
+        BOT_RUNTIME["configured_mode"] = "remote"
+    STATE.append_log("Telegram 409 Conflict: server bot is active — switched local app to remote/connect mode.")
+
+
+def sync_bot_runner(mode: str) -> None:
+    """Start or stop background Telegram polling according to resolved mode."""
+    env = get_env()
+    token = env.get("TG_BOT_TOKEN", "").strip()
+    if mode == "auto" and token and _remote_panel_alive(env):
+        mode = "remote"
+
+    with BOT_CTRL_LOCK:
+        BOT_RUNTIME["configured_mode"] = mode
+        current: TelegramBotRunner | None = BOT_RUNTIME.get("runner")  # type: ignore[assignment]
+        if mode in ("remote", "off") or not token:
+            if current is not None:
+                current.stop_event.set()
+            BOT_RUNTIME["runner"] = None
+            return
+
+        if current is not None and not current.stop_event.is_set():
+            return
+
+        BOT_RUNTIME["conflict_yielded"] = False
+        BOT_RUNTIME["runner"] = start_bot_in_background(
+            yield_on_conflict=True,
+            on_conflict=_on_bot_conflict,
+        )
+
+
+def refresh_bot_info_async() -> None:
+    """Refresh Telegram @username cleanly via getMe without polling getUpdates."""
+    token = get_env().get("TG_BOT_TOKEN", "").strip()
+    if not token:
+        return
+
+    def _worker() -> None:
+        info = fetch_bot_info(token, timeout=5)
+        with BOT_CTRL_LOCK:
+            BOT_RUNTIME["bot_info"] = info
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def build_telegram_state(env: dict[str, str]) -> dict[str, object]:
+    """Assemble safe Telegram status for web dashboard."""
+    token = env.get("TG_BOT_TOKEN", "").strip()
+    cached = get_cached_tg_summary()
+    with BOT_CTRL_LOCK:
+        runner: TelegramBotRunner | None = BOT_RUNTIME.get("runner")  # type: ignore[assignment]
+        conf_mode = str(BOT_RUNTIME.get("configured_mode") or "auto")
+        conflict = bool(BOT_RUNTIME.get("conflict_yielded"))
+        bot_info = dict(BOT_RUNTIME.get("bot_info") or {})
+
+    polling_active = bool(runner is not None and not runner.stop_event.is_set())
+    if not token or conf_mode == "off":
+        eff_mode = "off"
+    elif polling_active:
+        eff_mode = "local_polling"
+    else:
+        eff_mode = "remote_connect"
+
+    username = str(bot_info.get("username") or cached.get("bot_username") or "")
+    return {
+        "configured": bool(token),
+        "configured_mode": conf_mode,
+        "effective_mode": eff_mode,
+        "local_polling": polling_active,
+        "conflict_yielded": conflict,
+        "username": username,
+        "bot_url": f"https://t.me/{username}" if username else "",
+        "connected": bot_info.get("ok"),
+        "last_error": str(bot_info.get("error") or ""),
+        "authorized_chats": cached.get("authorized_chats", []),
+        "notify_chat_id": env.get("TG_NOTIFY_CHAT_ID", ""),
+        "proxy_configured": bool(env.get("TG_PROXY", "").strip()),
+    }
 
 
 class PanelHandler(BaseHTTPRequestHandler):
@@ -118,6 +251,7 @@ class PanelHandler(BaseHTTPRequestHandler):
                     "inbox_pending": inbox_pending,
                     "inbox_total": len(inbox_items),
                     "tg_enabled": bool(env.get("TG_BOT_TOKEN", "").strip()),
+                    "telegram": build_telegram_state(env),
                     "imap": {
                         "host": imap_cfg["host"],
                         "port": imap_cfg["port"],
@@ -300,6 +434,12 @@ class PanelHandler(BaseHTTPRequestHandler):
                     status=str(body.get("status") or ""),
                 )
                 self._send_json(HTTPStatus.OK, res)
+            elif parsed.path == "/api/tg/mode":
+                self._handle_tg_mode(body)
+            elif parsed.path == "/api/tg/check":
+                self._handle_tg_check(body)
+            elif parsed.path == "/api/tg/ping":
+                self._handle_tg_ping(body)
             else:
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
         except Exception as exc:  # noqa: BLE001
@@ -401,17 +541,72 @@ class PanelHandler(BaseHTTPRequestHandler):
         res = send_via_account(account, target_email, subj, text_body, html_body)
         self._send_json(HTTPStatus.OK, {"ok": True, "id": res.get("id"), "template_id": chosen_id})
 
+    def _handle_tg_mode(self, body: dict) -> None:
+        mode = str(body.get("mode") or "remote").strip().lower()
+        if mode not in ("remote", "auto", "local", "off"):
+            raise ValueError("Invalid TG bot mode.")
+        updates: dict[str, str] = {"TG_BOT_MODE": mode}
+        if "notify_chat_id" in body:
+            updates["TG_NOTIFY_CHAT_ID"] = str(body.get("notify_chat_id") or "").strip()
+        if "proxy" in body:
+            proxy_val = str(body.get("proxy") or "").strip()
+            if proxy_val or body.get("clear_proxy"):
+                updates["TG_PROXY"] = proxy_val
+        env = update_env_vars(updates)
+        resolved = resolve_configured_tg_mode(env, [])
+        sync_bot_runner(resolved)
+        self._send_json(HTTPStatus.OK, {"ok": True, "telegram": build_telegram_state(env)})
+
+    def _handle_tg_check(self, body: dict) -> None:
+        env = get_env()
+        token = env.get("TG_BOT_TOKEN", "").strip()
+        if not token:
+            raise ValueError("TG_BOT_TOKEN is not configured in .env.")
+        proxy = str(body.get("proxy") or "").strip() or None
+        info = fetch_bot_info(token, proxy=proxy, timeout=6)
+        with BOT_CTRL_LOCK:
+            BOT_RUNTIME["bot_info"] = info
+        if not info.get("ok"):
+            raise ValueError(str(info.get("error") or "Telegram API unreachable."))
+        self._send_json(HTTPStatus.OK, {"ok": True, "info": info, "telegram": build_telegram_state(env)})
+
+    def _handle_tg_ping(self, body: dict) -> None:
+        env = get_env()
+        token = env.get("TG_BOT_TOKEN", "").strip()
+        if not token:
+            raise ValueError("TG_BOT_TOKEN is not configured in .env.")
+        proxy = str(body.get("proxy") or "").strip() or None
+        chat_id = str(body.get("chat_id") or "").strip() or None
+        stats = get_sent_stats(load_sent_log())
+        text = str(body.get("text") or "").strip() or (
+            f"🔗 Web Panel ↔ Telegram Bot connected!\n"
+            f"Sent today: {stats['sent_today']} | Total sent: {stats['total_sent']}\n"
+            f"Local polling: OFF (server bot mode)."
+        )
+        res = send_bot_ping(token, text, chat_id=chat_id, proxy=proxy, timeout=8)
+        self._send_json(HTTPStatus.OK, res)
+
 
 def main() -> int:
-    """Start local web panel server and background Telegram bot (if configured)."""
-    bot_runner = None if "--no-bot" in os.sys.argv else start_bot_in_background()
+    """Start local web panel server and optional background Telegram bot."""
+    env = get_env()
+    mode = resolve_configured_tg_mode(env, sys.argv)
+    sync_bot_runner(mode)
+    refresh_bot_info_async()
+
     server = ThreadingHTTPServer((HOST, PORT), PanelHandler)
     url = f"http://{HOST}:{PORT}"
     print(f"Email Outreach Panel running at {url}")
-    if bot_runner:
-        print("Telegram bot thread active.")
+    with BOT_CTRL_LOCK:
+        active_runner = BOT_RUNTIME.get("runner")
+    if active_runner:
+        print("Telegram bot thread active (local polling).")
+    elif mode == "remote":
+        print("Telegram bot in REMOTE mode (local polling off; server handles bot).")
+    else:
+        print("Telegram bot disabled (no TG_BOT_TOKEN or mode=off).")
     print("Press Ctrl+C to stop.")
-    if "--no-browser" not in os.sys.argv:
+    if "--no-browser" not in sys.argv:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
         server.serve_forever()
@@ -419,8 +614,10 @@ def main() -> int:
         print("\nShutting down panel...")
     finally:
         STATE.stop_event.set()
-        if bot_runner:
-            bot_runner.stop_event.set()
+        with BOT_CTRL_LOCK:
+            runner: TelegramBotRunner | None = BOT_RUNTIME.get("runner")  # type: ignore[assignment]
+            if runner:
+                runner.stop_event.set()
         server.server_close()
     return 0
 

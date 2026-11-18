@@ -21,6 +21,10 @@ Safe cold email outreach tool via the Resend API (`https://resend.com`) or custo
    TG_BOT_TOKEN=
    TG_ACCESS_CODE=7391
    TG_ALLOWED_USERS=
+   # remote = local web UI + outbound connect only (when VPS runs bot), auto = stop local bot on 409 conflict
+   TG_BOT_MODE=auto
+   TG_NOTIFY_CHAT_ID=
+   TG_PROXY=
    IMAP_HOST=imap.gmail.com
    IMAP_PORT=993
    IMAP_USER=
@@ -59,7 +63,7 @@ docker compose up -d --build
 docker compose logs -f bot
 ```
 All runtime files (`leads_ready.csv`, `sent_log.json`, `tg_state.json`, `blacklist.txt`, `imap_config.json`) persist inside `./data` on the host.
-*(If running the bot 24/7 on a server, launch the local Windows web panel with `python panel.py --no-bot` so only one instance polls Telegram.)*
+*(When running the bot 24/7 on a server, set `TG_BOT_MODE=remote` in your local `.env` or launch with `python panel.py --no-bot` so your PC runs only the web dashboard + outbound Telegram connection without competing with the server for `getUpdates`. In `auto` mode, local `panel.py` also automatically stops polling on a `409 Conflict`.)*
 
 ### Features & Anti-Spam Guardrails
 - Visual queue filtering (`EN` / `ID` / `RU` / `UA`, `no_site` / `has_site`) and live search

@@ -96,7 +96,7 @@
       <div class="brand">
         <span data-i18n="appTitle">Email Outreach Panel</span>
         <span class="pill ok" id="shield-badge"></span>
-        <span class="pill" id="tg-badge"></span>
+        <span class="pill" id="tg-badge" style="cursor:pointer;" onclick="switchTab('accounts', document.getElementById('tab-btn-accounts'))"></span>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <span class="pill" id="stat-today"></span>
@@ -267,29 +267,60 @@
     <!-- TAB 3: ACCOUNTS & GUARDRAILS -->
     <div id="tab-accounts" class="hidden">
       <div class="grid">
-        <div class="card">
-          <h2 data-i18n="smtpTitle"></h2>
-          <p style="font-size:12px; color:var(--muted); margin-top:0;" data-i18n="smtpHint"></p>
-          <label data-i18n="smtpHostLbl"></label>
-          <input type="text" id="smtp-host" value="smtp.gmail.com">
-          <div class="row">
-            <div>
-              <label data-i18n="portLbl"></label>
-              <input type="number" id="smtp-port" value="465">
+        <div>
+          <div class="card">
+            <h2 data-i18n="tgCardTitle"></h2>
+            <p style="font-size:12px; color:var(--muted); margin-top:0;" data-i18n="tgCardHint"></p>
+            <div id="tg-status-line" style="font-size:13px; margin-bottom:10px;"></div>
+            <label data-i18n="tgModeLbl"></label>
+            <select id="tg-mode-select">
+              <option value="remote" data-i18n="tgOptRemote"></option>
+              <option value="auto" data-i18n="tgOptAuto"></option>
+              <option value="local" data-i18n="tgOptLocal"></option>
+              <option value="off" data-i18n="tgOptOff"></option>
+            </select>
+            <div class="row">
+              <div>
+                <label data-i18n="tgChatIdLbl"></label>
+                <input type="text" id="tg-chat-id" data-i18n-ph="tgChatIdPh">
+              </div>
+              <div>
+                <label data-i18n="tgProxyLbl"></label>
+                <input type="text" id="tg-proxy" data-i18n-ph="tgProxyPh">
+              </div>
             </div>
-            <div>
-              <label data-i18n="senderNameLbl"></label>
-              <input type="text" id="smtp-name" data-i18n-ph="senderNamePh">
+            <div class="btn-row">
+              <button class="btn btn-primary" data-i18n="tgSaveModeBtn" onclick="saveTgMode()"></button>
+              <button class="btn btn-ghost" data-i18n="tgCheckBtn" onclick="checkTgConnection()"></button>
+              <button class="btn btn-green" data-i18n="tgPingBtn" onclick="sendTgPing()"></button>
             </div>
+            <div id="tg-result"></div>
           </div>
-          <label data-i18n="smtpUserLbl"></label>
-          <input type="email" id="smtp-user" placeholder="example@gmail.com">
-          <label data-i18n="smtpPassLbl"></label>
-          <input type="password" id="smtp-pass" placeholder="xxxx xxxx xxxx xxxx">
-          <div class="btn-row">
-            <button class="btn btn-primary" data-i18n="smtpSaveBtn" onclick="addSmtpAccount()"></button>
+
+          <div class="card">
+            <h2 data-i18n="smtpTitle"></h2>
+            <p style="font-size:12px; color:var(--muted); margin-top:0;" data-i18n="smtpHint"></p>
+            <label data-i18n="smtpHostLbl"></label>
+            <input type="text" id="smtp-host" value="smtp.gmail.com">
+            <div class="row">
+              <div>
+                <label data-i18n="portLbl"></label>
+                <input type="number" id="smtp-port" value="465">
+              </div>
+              <div>
+                <label data-i18n="senderNameLbl"></label>
+                <input type="text" id="smtp-name" data-i18n-ph="senderNamePh">
+              </div>
+            </div>
+            <label data-i18n="smtpUserLbl"></label>
+            <input type="email" id="smtp-user" placeholder="example@gmail.com">
+            <label data-i18n="smtpPassLbl"></label>
+            <input type="password" id="smtp-pass" placeholder="xxxx xxxx xxxx xxxx">
+            <div class="btn-row">
+              <button class="btn btn-primary" data-i18n="smtpSaveBtn" onclick="addSmtpAccount()"></button>
+            </div>
+            <div id="smtp-result"></div>
           </div>
-          <div id="smtp-result"></div>
         </div>
 
         <div>
@@ -400,6 +431,7 @@
     let LAST_LEADS_DATA = null;
     let LAST_SAFETY_RES = null;
     let LAST_INBOX_DATA = null;
+    let TG_FIELDS_INIT = false;
     let ACTIVE_TAB = 'send';
     let UI_LANG = localStorage.getItem('outreach_ui_lang') || 'ru';
 
@@ -409,6 +441,32 @@
         shield: 'Анти-спам защита активна',
         tgOn: 'TG Бот: активен',
         tgOff: 'TG Бот: выкл',
+        tgRemote: 'TG Бот: на сервере (коннект)',
+        tgRemoteUser: 'TG Бот: @{user} (сервер)',
+        tgLocal: 'TG Бот: локальный поллинг',
+        tgCardTitle: 'Подключение к Telegram-боту',
+        tgCardHint: 'В режиме «Бот на сервере» локальное приложение НЕ запускает опрос getUpdates (чтобы не конфликтовать с сервером), а только работает как панель и держит коннект с ботом.',
+        tgModeLbl: 'Режим запуска бота на этом ПК',
+        tgOptRemote: 'Бот на сервере (локально только панель и коннект)',
+        tgOptAuto: 'Авто (остановит локальный бот при конфликте 409)',
+        tgOptLocal: 'Запускать бота локально (когда сервер выключен)',
+        tgOptOff: 'Отключить Telegram на этом ПК',
+        tgChatIdLbl: 'Chat ID для пинга (необяз.)',
+        tgChatIdPh: 'Авто из tg_state / .env',
+        tgProxyLbl: 'HTTP прокси (если провайдер режет TG)',
+        tgProxyPh: 'http://127.0.0.1:10808',
+        tgSaveModeBtn: 'Сохранить режим',
+        tgCheckBtn: 'Проверить связь',
+        tgPingBtn: 'Отправить тест в бот',
+        tgOpenBotBtn: 'Открыть @{user}',
+        tgStatusRemote: 'Режим: только веб-панель + коннект (поллинг на этом ПК выключен). Авторизованных чатов: {chats}.',
+        tgStatusLocal: 'Режим: локальный поллинг активен на этом ПК. Авторизованных чатов: {chats}.',
+        tgStatusOff: 'Telegram токен не задан или выключен.',
+        tgStatusConflict: 'Обнаружен работающий бот на сервере (409) — локальный поллинг автоматически остановлен.',
+        tgModeSaved: 'Режим Telegram обновлён.',
+        tgChecking: 'Проверяем связь с ботом (getMe)...',
+        tgCheckOk: 'Связь с ботом @{user} работает! Открыть: https://t.me/{user}',
+        tgPingOk: 'Тестовое сообщение отправлено в Telegram (chat ID: {chats}).',
         todayLbl: 'Сегодня',
         totalLbl: 'Всего отправлено',
         ready: 'Готов',
@@ -541,6 +599,32 @@
         shield: 'Anti-spam guard active',
         tgOn: 'TG Bot: active',
         tgOff: 'TG Bot: off',
+        tgRemote: 'TG Bot: server (connect)',
+        tgRemoteUser: 'TG Bot: @{user} (server)',
+        tgLocal: 'TG Bot: local polling',
+        tgCardTitle: 'Telegram Bot Connection',
+        tgCardHint: 'In "Server Bot" mode this PC does NOT poll getUpdates (preventing 409 conflicts with your VPS), running strictly as a local web app with outbound bot connection.',
+        tgModeLbl: 'Local Bot Mode on This PC',
+        tgOptRemote: 'Bot on server (local web UI + connect only)',
+        tgOptAuto: 'Auto (yields automatically on 409 conflict)',
+        tgOptLocal: 'Run bot locally (only when server is off)',
+        tgOptOff: 'Disable Telegram on this PC',
+        tgChatIdLbl: 'Ping Chat ID (optional)',
+        tgChatIdPh: 'Auto from tg_state / .env',
+        tgProxyLbl: 'HTTP proxy (if ISP throttles TG)',
+        tgProxyPh: 'http://127.0.0.1:10808',
+        tgSaveModeBtn: 'Save Mode',
+        tgCheckBtn: 'Check Connection',
+        tgPingBtn: 'Send Ping to Bot',
+        tgOpenBotBtn: 'Open @{user}',
+        tgStatusRemote: 'Mode: local web UI + connect only (local polling off). Authorized chats: {chats}.',
+        tgStatusLocal: 'Mode: local polling active on this PC. Authorized chats: {chats}.',
+        tgStatusOff: 'Telegram token missing or disabled.',
+        tgStatusConflict: 'Detected active server bot (409) — local polling yielded automatically.',
+        tgModeSaved: 'Telegram mode updated.',
+        tgChecking: 'Checking Telegram bot (getMe)...',
+        tgCheckOk: 'Connected to @{user}! Link: https://t.me/{user}',
+        tgPingOk: 'Test ping delivered to Telegram (chat ID: {chats}).',
         todayLbl: 'Today',
         totalLbl: 'Total sent',
         ready: 'Ready',
@@ -673,6 +757,32 @@
         shield: 'Proteksi anti-spam aktif',
         tgOn: 'Bot TG: aktif',
         tgOff: 'Bot TG: nonaktif',
+        tgRemote: 'Bot TG: di server (terhubung)',
+        tgRemoteUser: 'Bot TG: @{user} (server)',
+        tgLocal: 'Bot TG: polling lokal',
+        tgCardTitle: 'Koneksi Bot Telegram',
+        tgCardHint: 'Pada mode "Bot di server", PC ini TIDAK menjalankan polling getUpdates (mencegah bentrok 409 dengan VPS), hanya berjalan sebagai aplikasi web lokal yang terhubung ke bot.',
+        tgModeLbl: 'Mode Bot di PC Ini',
+        tgOptRemote: 'Bot di server (lokal hanya web UI + koneksi)',
+        tgOptAuto: 'Otomatis (berhenti jika bentrok 409)',
+        tgOptLocal: 'Jalankan bot di PC ini (jika server mati)',
+        tgOptOff: 'Nonaktifkan Telegram di PC ini',
+        tgChatIdLbl: 'Chat ID Ping (opsional)',
+        tgChatIdPh: 'Otomatis dari tg_state / .env',
+        tgProxyLbl: 'Proxy HTTP (jika ISP memblokir TG)',
+        tgProxyPh: 'http://127.0.0.1:10808',
+        tgSaveModeBtn: 'Simpan Mode',
+        tgCheckBtn: 'Cek Koneksi',
+        tgPingBtn: 'Kirim Tes ke Bot',
+        tgOpenBotBtn: 'Buka @{user}',
+        tgStatusRemote: 'Mode: hanya aplikasi web lokal + koneksi (polling lokal mati). Chat terdaftar: {chats}.',
+        tgStatusLocal: 'Mode: polling lokal aktif di PC ini. Chat terdaftar: {chats}.',
+        tgStatusOff: 'Token Telegram belum diatur atau nonaktif.',
+        tgStatusConflict: 'Bot server terdeteksi aktif (409) — polling lokal otomatis dihentikan.',
+        tgModeSaved: 'Mode Telegram diperbarui.',
+        tgChecking: 'Memeriksa koneksi bot (getMe)...',
+        tgCheckOk: 'Terhubung dengan @{user}! Tautan: https://t.me/{user}',
+        tgPingOk: 'Pesan tes terkirim ke Telegram (chat ID: {chats}).',
         todayLbl: 'Hari ini',
         totalLbl: 'Total terkirim',
         ready: 'Siap',
@@ -895,8 +1005,30 @@
       ib.className = 'pill ' + (pend > 0 ? 'warn' : '');
 
       const tgBadge = document.getElementById('tg-badge');
-      tgBadge.textContent = data.tg_enabled ? t.tgOn : t.tgOff;
-      tgBadge.className = 'pill ' + (data.tg_enabled ? 'ok' : '');
+      const tg = data.telegram || {};
+      if (tg.effective_mode === 'local_polling') {
+        tgBadge.textContent = t.tgLocal;
+        tgBadge.className = 'pill ok';
+      } else if (tg.effective_mode === 'remote_connect') {
+        tgBadge.textContent = tg.username ? fmt(t.tgRemoteUser, { user: tg.username }) : t.tgRemote;
+        tgBadge.className = 'pill ok';
+      } else {
+        tgBadge.textContent = data.tg_enabled ? t.tgOn : t.tgOff;
+        tgBadge.className = 'pill ' + (data.tg_enabled ? 'ok' : '');
+      }
+
+      const tgLine = document.getElementById('tg-status-line');
+      if (tgLine) {
+        const chatsCount = (tg.authorized_chats || []).length;
+        let msg = t.tgStatusOff;
+        if (tg.effective_mode === 'local_polling') msg = fmt(t.tgStatusLocal, { chats: chatsCount });
+        else if (tg.effective_mode === 'remote_connect') msg = fmt(t.tgStatusRemote, { chats: chatsCount });
+        const conflictHtml = tg.conflict_yielded ? `<div class="alert warn" style="margin:6px 0;">${escapeHtml(t.tgStatusConflict)}</div>` : '';
+        const linkHtml = tg.bot_url
+          ? ` <a class="pill ok" style="text-decoration:none; margin-left:6px;" href="${escapeHtml(tg.bot_url)}" target="_blank" rel="noopener">${escapeHtml(fmt(t.tgOpenBotBtn, { user: tg.username }))}</a>`
+          : '';
+        tgLine.innerHTML = `${conflictHtml}<div>${escapeHtml(msg)}${linkHtml}</div>`;
+      }
 
       const running = data.campaign.running;
       document.getElementById('run-badge').textContent = running ? t.sending : t.ready;
@@ -967,6 +1099,13 @@
           document.getElementById('imap-host').value = data.imap.host;
           document.getElementById('imap-port').value = data.imap.port;
         }
+      }
+      if (!TG_FIELDS_INIT && data.telegram) {
+        TG_FIELDS_INIT = true;
+        const modeSel = document.getElementById('tg-mode-select');
+        if (modeSel && data.telegram.configured_mode) modeSel.value = data.telegram.configured_mode;
+        const chatIn = document.getElementById('tg-chat-id');
+        if (chatIn && !chatIn.value && data.telegram.notify_chat_id) chatIn.value = data.telegram.notify_chat_id;
       }
       renderStateDynamic();
     }
@@ -1235,6 +1374,58 @@
         await loadState();
       } catch (e) {
         renderAlert('imap-result', 'err', e.message);
+      }
+    }
+
+    async function saveTgMode() {
+      const t = T();
+      try {
+        await api('/api/tg/mode', {
+          method: 'POST',
+          body: JSON.stringify({
+            mode: document.getElementById('tg-mode-select').value,
+            notify_chat_id: document.getElementById('tg-chat-id').value,
+            proxy: document.getElementById('tg-proxy').value,
+          }),
+        });
+        TG_FIELDS_INIT = false;
+        renderAlert('tg-result', 'ok', t.tgModeSaved);
+        await loadState();
+      } catch (e) {
+        renderAlert('tg-result', 'err', e.message);
+      }
+    }
+
+    async function checkTgConnection() {
+      const t = T();
+      try {
+        renderAlert('tg-result', 'warn', t.tgChecking);
+        const res = await api('/api/tg/check', {
+          method: 'POST',
+          body: JSON.stringify({
+            proxy: document.getElementById('tg-proxy').value,
+          }),
+        });
+        renderAlert('tg-result', 'ok', fmt(t.tgCheckOk, { user: res.info.username || 'bot' }));
+        await loadState();
+      } catch (e) {
+        renderAlert('tg-result', 'err', e.message);
+      }
+    }
+
+    async function sendTgPing() {
+      const t = T();
+      try {
+        const res = await api('/api/tg/ping', {
+          method: 'POST',
+          body: JSON.stringify({
+            chat_id: document.getElementById('tg-chat-id').value,
+            proxy: document.getElementById('tg-proxy').value,
+          }),
+        });
+        renderAlert('tg-result', 'ok', fmt(t.tgPingOk, { chats: (res.sent_to || []).join(', ') }));
+      } catch (e) {
+        renderAlert('tg-result', 'err', e.message);
       }
     }
 

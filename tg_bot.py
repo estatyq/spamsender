@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import threading
 import time
+from typing import Callable
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -213,32 +214,164 @@ STRINGS: dict[str, dict[str, str]] = {
 }
 
 
+def _read_state_unlocked() -> dict:
+    if not TG_STATE_PATH.exists():
+        return {
+            "authorized_chats": [],
+            "chat_langs": {},
+            "pending": {},
+            "last_imap_uid": 0,
+            "replies": {},
+            "tg_msg_map": {},
+            "next_reply_id": 1,
+            "bot_username": "",
+        }
+    data = json.loads(TG_STATE_PATH.read_text(encoding="utf-8"))
+    data.setdefault("authorized_chats", [])
+    data.setdefault("chat_langs", {})
+    data.setdefault("pending", {})
+    data.setdefault("last_imap_uid", 0)
+    data.setdefault("replies", {})
+    data.setdefault("tg_msg_map", {})
+    data.setdefault("next_reply_id", 1)
+    data.setdefault("bot_username", "")
+    return data
+
+
 def _load_state() -> dict:
     with STATE_FILE_LOCK:
-        if not TG_STATE_PATH.exists():
-            return {
-                "authorized_chats": [],
-                "chat_langs": {},
-                "pending": {},
-                "last_imap_uid": 0,
-                "replies": {},
-                "tg_msg_map": {},
-                "next_reply_id": 1,
-            }
-        data = json.loads(TG_STATE_PATH.read_text(encoding="utf-8"))
-        data.setdefault("authorized_chats", [])
-        data.setdefault("chat_langs", {})
-        data.setdefault("pending", {})
-        data.setdefault("last_imap_uid", 0)
-        data.setdefault("replies", {})
-        data.setdefault("tg_msg_map", {})
-        data.setdefault("next_reply_id", 1)
-        return data
+        return _read_state_unlocked()
 
 
 def _save_state(data: dict) -> None:
     with STATE_FILE_LOCK:
         TG_STATE_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _tg_urlopen(req_or_url: str | urllib.request.Request, timeout: int = 15, proxy: str | None = None):
+    """Open Telegram API request with optional TG_PROXY support."""
+    proxy_url = (proxy if proxy is not None else get_env().get("TG_PROXY", "")).strip()
+    if proxy_url:
+        if proxy_url.lower().startswith("socks"):
+            raise ValueError("Use an HTTP/HTTPS proxy URL (e.g. http://127.0.0.1:10808) or system VPN.")
+        opener = urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": proxy_url, "https": proxy_url})
+        )
+        return opener.open(req_or_url, timeout=timeout)
+    return urllib.request.urlopen(req_or_url, timeout=timeout)
+
+
+def _tg_api_call(
+    token: str,
+    method: str,
+    payload: dict | None = None,
+    timeout: int = 15,
+    proxy: str | None = None,
+) -> dict:
+    """Call Telegram Bot API method cleanly."""
+    clean_token = token.strip()
+    if not clean_token:
+        raise ValueError("TG_BOT_TOKEN is not configured.")
+    url = f"https://api.telegram.org/bot{clean_token}/{method}"
+    if payload is None:
+        req = urllib.request.Request(url, method="GET")
+    else:
+        data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+    with _tg_urlopen(req, timeout=timeout, proxy=proxy) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def fetch_bot_info(token: str, proxy: str | None = None, timeout: int = 6) -> dict[str, object]:
+    """Query Telegram getMe (never calls getUpdates) and cache @username locally."""
+    try:
+        resp = _tg_api_call(token, "getMe", None, timeout=timeout, proxy=proxy)
+        if not resp.get("ok"):
+            return {"ok": False, "error": str(resp.get("description") or "Telegram API error")}
+        result = resp.get("result") or {}
+        username = str(result.get("username") or "").strip()
+        if username:
+            with STATE_FILE_LOCK:
+                st = _read_state_unlocked()
+                st["bot_username"] = username
+                TG_STATE_PATH.write_text(json.dumps(st, ensure_ascii=False, indent=2), encoding="utf-8")
+        return {
+            "ok": True,
+            "id": result.get("id"),
+            "username": username,
+            "first_name": str(result.get("first_name") or ""),
+            "url": f"https://t.me/{username}" if username else "",
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)}
+
+
+def get_cached_tg_summary() -> dict[str, object]:
+    """Return cached bot username and authorized chat IDs from tg_state.json."""
+    st = _load_state()
+    return {
+        "bot_username": str(st.get("bot_username") or ""),
+        "authorized_chats": [int(c) for c in st.get("authorized_chats", []) if str(c).lstrip("-").isdigit()],
+    }
+
+
+def resolve_notify_targets(explicit_chat_id: str | int | None = None) -> list[int]:
+    """Resolve target Telegram chat IDs from input, .env, and authorized state."""
+    targets: list[int] = []
+    seen: set[int] = set()
+
+    def _add(raw_val: object) -> None:
+        s = str(raw_val or "").strip()
+        if s and s.lstrip("-").isdigit():
+            val = int(s)
+            if val not in seen:
+                seen.add(val)
+                targets.append(val)
+
+    if explicit_chat_id is not None and str(explicit_chat_id).strip():
+        s = str(explicit_chat_id).strip()
+        if not s.lstrip("-").isdigit():
+            raise ValueError("Chat ID must be a numeric Telegram chat/user ID.")
+        _add(s)
+        return targets
+
+    env = get_env()
+    for part in str(env.get("TG_NOTIFY_CHAT_ID", "")).split(","):
+        _add(part)
+    for part in str(env.get("TG_ALLOWED_USERS", "")).split(","):
+        _add(part)
+    for cid in _load_state().get("authorized_chats", []):
+        _add(cid)
+    return targets
+
+
+def send_bot_ping(
+    token: str,
+    text: str,
+    chat_id: str | int | None = None,
+    proxy: str | None = None,
+    timeout: int = 8,
+) -> dict[str, object]:
+    """Send an outbound Telegram message from the web app without polling getUpdates."""
+    targets = resolve_notify_targets(chat_id)
+    if not targets:
+        raise ValueError("No chat ID configured yet. Send /start to the bot in Telegram or specify a Chat ID.")
+    sent_to: list[int] = []
+    errors: list[str] = []
+    for cid in targets:
+        try:
+            _tg_api_call(token, "sendMessage", {"chat_id": cid, "text": text[:4000]}, timeout=timeout, proxy=proxy)
+            sent_to.append(cid)
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{cid}: {exc}")
+    if not sent_to:
+        raise RuntimeError("; ".join(errors) or "Failed to send Telegram message.")
+    return {"ok": True, "sent_to": sent_to, "errors": errors}
 
 
 def _t(state: dict, chat_id: int, key: str, **kwargs: object) -> str:
@@ -251,28 +384,28 @@ def _t(state: dict, chat_id: int, key: str, **kwargs: object) -> str:
 class TelegramBotRunner:
     """Zero-dependency Telegram long-polling bot integrated with shared campaign state."""
 
-    def __init__(self, token: str) -> None:
+    def __init__(
+        self,
+        token: str,
+        yield_on_conflict: bool = False,
+        on_conflict: Callable[[], None] | None = None,
+    ) -> None:
         self.token = token.strip()
         self.base_url = f"https://api.telegram.org/bot{self.token}"
         self.stop_event = threading.Event()
         self.offset = 0
+        self.yield_on_conflict = yield_on_conflict
+        self.on_conflict = on_conflict
+        self.conflict_detected = False
 
     def _call(self, method: str, payload: dict | None = None, timeout: int = 35) -> dict:
-        data = json.dumps(payload or {}).encode("utf-8")
-        req = urllib.request.Request(
-            f"{self.base_url}/{method}",
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        return _tg_api_call(self.token, method, payload or {}, timeout=timeout)
 
     def _download_file(self, file_id: str) -> str:
         info = self._call("getFile", {"file_id": file_id}, timeout=15)
         file_path = info["result"]["file_path"]
         url = f"https://api.telegram.org/file/bot{self.token}/{file_path}"
-        with urllib.request.urlopen(url, timeout=20) as resp:
+        with _tg_urlopen(url, timeout=20) as resp:
             return resp.read().decode("utf-8-sig", errors="replace")
 
     def send_msg(self, chat_id: int, text: str, reply_markup: dict | None = None) -> int | None:
@@ -836,7 +969,7 @@ class TelegramBotRunner:
         while not self.stop_event.is_set():
             try:
                 qs = urllib.parse.urlencode({"offset": self.offset, "timeout": 25})
-                with urllib.request.urlopen(f"{self.base_url}/getUpdates?{qs}", timeout=35) as resp:
+                with _tg_urlopen(f"{self.base_url}/getUpdates?{qs}", timeout=35) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                 for upd in data.get("result", []):
                     self.offset = upd["update_id"] + 1
@@ -844,17 +977,37 @@ class TelegramBotRunner:
                         self._handle_callback(upd["callback_query"])
                     elif "message" in upd:
                         self._handle_message(upd["message"])
+            except urllib.error.HTTPError as exc:
+                if exc.code == 409 and self.yield_on_conflict:
+                    print("[tg_bot] 409 Conflict: bot is already active on server; stopping local polling.")
+                    self.conflict_detected = True
+                    self.stop_event.set()
+                    if self.on_conflict:
+                        try:
+                            self.on_conflict()
+                        except Exception:  # noqa: BLE001
+                            pass
+                    break
+                print(f"[tg_bot] poll HTTP error {exc.code}: {exc.reason}")
+                self.stop_event.wait(4)
             except Exception as exc:  # noqa: BLE001
                 print(f"[tg_bot] poll error: {exc}")
                 self.stop_event.wait(3)
 
 
-def start_bot_in_background() -> TelegramBotRunner | None:
+def start_bot_in_background(
+    yield_on_conflict: bool = True,
+    on_conflict: Callable[[], None] | None = None,
+) -> TelegramBotRunner | None:
     """Start Telegram bot thread if TG_BOT_TOKEN is configured."""
     token = get_env().get("TG_BOT_TOKEN", "").strip()
     if not token:
         return None
-    runner = TelegramBotRunner(token)
+    runner = TelegramBotRunner(
+        token,
+        yield_on_conflict=yield_on_conflict,
+        on_conflict=on_conflict,
+    )
     threading.Thread(target=runner.run_forever, daemon=True).start()
     return runner
 

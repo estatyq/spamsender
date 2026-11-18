@@ -45,6 +45,7 @@ from prepare_leads import check_domain_mx, is_clean_syntax
 IMAP_CONFIG_PATH = DATA_DIR / "imap_config.json"
 INBOX_PATH = DATA_DIR / "inbox_messages.json"
 INBOX_LOCK = threading.Lock()
+ENV_LOCK = threading.Lock()
 
 
 class CampaignState:
@@ -88,6 +89,29 @@ STATE = CampaignState()
 def get_env() -> dict[str, str]:
     """Read merged .env and process environment."""
     return {**load_env(ENV_PATH), **os.environ}
+
+
+def update_env_vars(updates: dict[str, str]) -> dict[str, str]:
+    """Update or append keys in .env and mirror them in process environment."""
+    with ENV_LOCK:
+        lines = ENV_PATH.read_text(encoding="utf-8").splitlines() if ENV_PATH.exists() else []
+        remaining = {str(k).strip(): str(v).strip() for k, v in updates.items() if str(k).strip()}
+        new_lines: list[str] = []
+        for raw in lines:
+            stripped = raw.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                key = stripped.split("=", 1)[0].strip()
+                if key in remaining:
+                    val = remaining.pop(key)
+                    new_lines.append(f"{key}={val}")
+                    os.environ[key] = val
+                    continue
+            new_lines.append(raw)
+        for key, val in remaining.items():
+            new_lines.append(f"{key}={val}")
+            os.environ[key] = val
+        ENV_PATH.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    return get_env()
 
 
 def brand_vars(env: dict[str, str], sender_name: str, sender_email: str) -> dict[str, str]:
