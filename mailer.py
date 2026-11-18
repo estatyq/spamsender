@@ -169,6 +169,21 @@ def select_template(
     return "template.txt", subject, body
 
 
+def render_html_from_text(text_body: str) -> str:
+    """Convert plain text paragraphs into clean minimal HTML."""
+    paragraphs = [p.strip() for p in text_body.split("\n\n") if p.strip()]
+    html_paragraphs = [
+        f"<p>{html.escape(p).replace(chr(10), '<br>')}</p>"
+        for p in paragraphs
+    ]
+    return (
+        '<div style="font-family: Arial, sans-serif; font-size: 14px; '
+        'line-height: 1.5; color: #111111;">'
+        + "".join(html_paragraphs)
+        + "</div>"
+    )
+
+
 def render_message(
     subject_tpl: str,
     body_tpl: str,
@@ -178,18 +193,7 @@ def render_message(
     mapping = _SafeFormatDict(variables)
     subject = resolve_spintax(subject_tpl).format_map(mapping).strip()
     text_body = resolve_spintax(body_tpl).format_map(mapping).strip()
-    paragraphs = [p.strip() for p in text_body.split("\n\n") if p.strip()]
-    html_paragraphs = [
-        f"<p>{html.escape(p).replace(chr(10), '<br>')}</p>"
-        for p in paragraphs
-    ]
-    html_body = (
-        '<div style="font-family: Arial, sans-serif; font-size: 14px; '
-        'line-height: 1.5; color: #111111;">'
-        + "".join(html_paragraphs)
-        + "</div>"
-    )
-    return subject, text_body, html_body
+    return subject, text_body, render_html_from_text(text_body)
 
 
 def load_sent_log(path: Path = SENT_LOG_PATH) -> list[dict]:
@@ -222,6 +226,7 @@ def send_via_resend(
     subject: str,
     text_body: str,
     html_body: str,
+    reply_headers: dict[str, str] | None = None,
 ) -> dict:
     """Send a single email via Resend REST API and return parsed JSON response."""
     sender = f"{from_name} <{from_email}>" if from_name else from_email
@@ -234,6 +239,8 @@ def send_via_resend(
     }
     if reply_to:
         payload["reply_to"] = reply_to
+    if reply_headers:
+        payload["headers"] = reply_headers
 
     req = urllib.request.Request(
         RESEND_API_URL,
@@ -265,6 +272,7 @@ def send_via_smtp(
     subject: str,
     text_body: str,
     html_body: str,
+    reply_headers: dict[str, str] | None = None,
 ) -> dict:
     """Send a single email via SMTP SSL (465) or STARTTLS (587)."""
     msg = EmailMessage()
@@ -273,6 +281,9 @@ def send_via_smtp(
     msg["Subject"] = subject
     if reply_to:
         msg["Reply-To"] = reply_to
+    for hdr_k, hdr_v in (reply_headers or {}).items():
+        if hdr_v:
+            msg[hdr_k] = hdr_v
     msg.set_content(text_body, subtype="plain", charset="utf-8")
     msg.add_alternative(html_body, subtype="html", charset="utf-8")
 
@@ -317,6 +328,7 @@ def send_via_account(
     subject: str,
     text_body: str,
     html_body: str,
+    reply_headers: dict[str, str] | None = None,
 ) -> dict:
     """Dispatch email using either a Resend or SMTP account dictionary."""
     provider = account.get("provider", "resend")
@@ -337,6 +349,7 @@ def send_via_account(
             subject=subject,
             text_body=text_body,
             html_body=html_body,
+            reply_headers=reply_headers,
         )
 
     return send_via_resend(
@@ -348,6 +361,7 @@ def send_via_account(
         subject=subject,
         text_body=text_body,
         html_body=html_body,
+        reply_headers=reply_headers,
     )
 
 
@@ -709,7 +723,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--run", action="store_true", help="Run outreach campaign")
     mode.add_argument("--dry-run", action="store_true", help="Preview 3 emails without sending")
     parser.add_argument("--csv", help="Path to CSV file (default: leads_ready.csv)")
-    parser.add_argument("--market", default="ALL", choices=["ALL", "EN", "ID", "UA"])
+    parser.add_argument("--market", default="ALL", choices=["ALL", "EN", "ID", "RU", "UA"])
     parser.add_argument("--site-status", default="ALL", choices=["ALL", "no_site", "has_site"])
     parser.add_argument("--template-id", help="Force template id from templates.json")
     parser.add_argument("--limit", type=int, help="Override DAILY_LIMIT for this run")

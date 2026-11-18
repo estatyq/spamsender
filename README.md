@@ -1,6 +1,6 @@
 # Email Outreach Sender
 
-Safe cold email outreach tool via the Resend API (`https://resend.com`) or custom SMTP with web dashboard, DNS MX pre-validation, spintax support, and multi-layer anti-spam guardrails.
+Safe cold email outreach tool via the Resend API (`https://resend.com`) or custom SMTP with a local web dashboard, multi-language Telegram bot (`EN` / `RU` / `ID`), DNS MX pre-validation, spintax support, and multi-layer anti-spam guardrails.
 
 ## Setup
 
@@ -16,6 +16,15 @@ Safe cold email outreach tool via the Resend API (`https://resend.com`) or custo
    DAILY_LIMIT=35
    MIN_DELAY_SEC=90
    MAX_DELAY_SEC=180
+
+   # Optional Telegram bot + IMAP reply bridge
+   TG_BOT_TOKEN=
+   TG_ACCESS_CODE=7391
+   TG_ALLOWED_USERS=
+   IMAP_HOST=imap.gmail.com
+   IMAP_PORT=993
+   IMAP_USER=
+   IMAP_PASSWORD=
    ```
 2. (Optional) Put raw lead CSV files into `raw_leads/` (or set `LEADS_DIR` in `.env`) and run MX validation:
    ```bash
@@ -23,20 +32,30 @@ Safe cold email outreach tool via the Resend API (`https://resend.com`) or custo
    ```
    This builds `leads_ready.csv` with MX-verified email domains.
 
-## Web Dashboard (Recommended)
+## Web Dashboard + Telegram Bot (Combined Mode)
 
 Double-click `start_panel.bat` or run:
 ```bash
 python panel.py
 ```
-Opens `http://127.0.0.1:8787` in your browser with:
-- Visual queue filtering (`EN` / `ID` / `UA`, `no_site` / `has_site`) and live search
-- Manual lead import with automatic DNS MX validation
-- Preflight anti-spam text checker (broken braces, spam triggers, ALL CAPS, URL shorteners)
+This launches:
+- Local web dashboard at `http://127.0.0.1:8787` (`RU` / `EN` / `ID` UI switcher)
+- Embedded Telegram bot (automatically starts if `TG_BOT_TOKEN` is set in `.env`) sharing the exact same campaign lock, queue, and anti-spam rules
+
+To run the Telegram bot standalone without the web UI:
+```bash
+python tg_bot.py
+```
+
+### Features & Anti-Spam Guardrails
+- Visual queue filtering (`EN` / `ID` / `RU` / `UA`, `no_site` / `has_site`) and live search
+- Lead import (`.csv` / `.txt` or pasted lines via web UI or Telegram chat) with automatic DNS MX validation
+- Preflight anti-spam text checker (broken braces, unknown variables, spam triggers, ALL CAPS, URL shorteners)
 - Forced safe pacing limits (min 45s delay, daily caps for Resend and SMTP)
 - Circuit breaker (auto-stops after 3 consecutive send failures)
 - Blacklist manager (`blacklist.txt`) and same-day corporate domain cooldown
 - Custom SMTP support (e.g. Gmail App Password) alongside Resend API
+- Optional IMAP inbox bridge to forward client replies into Telegram and reply in the same email thread
 
 ## CLI Usage
 

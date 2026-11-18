@@ -20,6 +20,16 @@
       "subject": "AI Chatbot WhatsApp & Sistem CRM untuk {company}",
       "body": "{Halo|Selamat siang} tim {company}!\n\nKami dari {brand_url} spesialis pembuatan AI Chatbot WhatsApp/Telegram, sistem CRM custom, dan otomatisasi bisnis.\n\nCocok untuk bisnis yang ingin membalas pertanyaan pelanggan otomatis 24 jam tanpa admin kewalahan.\n\nApakah tertarik jika kami kirimkan demo singkatnya?\n\nSalam,\nTim {brand_name}"
     },
+    "RU:no_site": {
+      "id": "ru_no_site",
+      "subject": "Сайт и автоматизация заявок для {company}",
+      "body": "{Здравствуйте|Добрый день}!\n\nНашли компанию {company} в каталоге и увидели, что у вас пока нет сайта.\n\nМы в {brand_url} делаем сайты под ключ, ботов для WhatsApp/Telegram и кастомные CRM-системы с автоматизацией под задачи бизнеса.\n\nПодскажите, актуально ли обсудить создание сайта или автоматизацию заявок?\n\nС уважением,\nКоманда {brand_name}"
+    },
+    "RU:has_site": {
+      "id": "ru_crm_bot",
+      "subject": "AI-бот и автоматизация заявок для {company}",
+      "body": "{Здравствуйте|Добрый день}!\n\nМы в {brand_url} создаём AI-ассистентов в WhatsApp/Telegram, кастомные CRM-системы и автоматизации, чтобы обращения клиентов обрабатывались 24/7 без потери заявок.\n\nПодскажите, интересно посмотреть короткий пример, как это работает для вашего направления?\n\nС уважением,\nКоманда {brand_name}"
+    },
     "UA:no_site": {
       "id": "ua_no_site",
       "subject": "Розробка сайту та автоматизація заявок для {company}",
@@ -41,11 +51,6 @@
       "id": "id_en_bali",
       "subject": "Website & WhatsApp booking automation for {company}",
       "body": "{Hi|Hello} {company} team!\n\nReaching out from {brand_url} — we build custom websites, 24/7 WhatsApp booking bots, and CRM automations for businesses in Indonesia.\n\nWould you be interested in a quick look at how a website + automated WhatsApp assistant can bring more bookings?\n\nBest regards,\n{brand_name} Team"
-    },
-    "ru_no_site": {
-      "id": "ru_no_site",
-      "subject": "Сайт и автоматизация заявок для {company}",
-      "body": "{Здравствуйте|Добрый день}!\n\nНашли компанию {company} в каталоге и увидели, что у вас пока нет сайта.\n\nМы в {brand_url} делаем сайты, ботов для WhatsApp/Telegram и кастомные CRM-системы с автоматизацией под задачи бизнеса.\n\nПодскажите, актуально ли обсудить создание сайта или автоматизацию заявок?\n\nС уважением,\nКоманда {brand_name}"
     }
   }
 }

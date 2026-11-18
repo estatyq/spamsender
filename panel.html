@@ -95,19 +95,25 @@
       <div class="brand">
         <span>Email Outreach Panel</span>
         <span class="pill ok" id="shield-badge">Анти-спам защита активна</span>
+        <span class="pill" id="tg-badge">TG Бот: выкл</span>
       </div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <span class="pill" id="stat-today">Сегодня: 0 / 35</span>
         <span class="pill" id="stat-total">Всего отправлено: 0</span>
         <span class="pill" id="run-badge">Готов</span>
         <button class="btn btn-red hidden" id="btn-stop-top" onclick="stopCampaign()">СТОП</button>
+        <div style="display:flex; gap:4px;">
+          <button class="btn btn-ghost" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('ru')">RU</button>
+          <button class="btn btn-ghost" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('en')">EN</button>
+          <button class="btn btn-ghost" style="padding:5px 9px;font-size:12px;" onclick="setUiLang('id')">ID</button>
+        </div>
       </div>
     </div>
 
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('send', this)">1. Запуск рассылки</button>
-      <button class="tab-btn" onclick="switchTab('templates', this)">2. Шаблоны и Проверка текста</button>
-      <button class="tab-btn" onclick="switchTab('accounts', this)">3. Почты (SMTP/Resend) и Защита</button>
+      <button class="tab-btn active" id="tab-btn-send" onclick="switchTab('send', this)">1. Запуск рассылки</button>
+      <button class="tab-btn" id="tab-btn-templates" onclick="switchTab('templates', this)">2. Шаблоны и Проверка текста</button>
+      <button class="tab-btn" id="tab-btn-accounts" onclick="switchTab('accounts', this)">3. Почты (SMTP/Resend) и Защита</button>
     </div>
 
     <!-- TAB 1: SEND -->
@@ -129,6 +135,7 @@
                   <option value="ALL">Все рынки</option>
                   <option value="EN">EN (США/Британия/Синг/Авст)</option>
                   <option value="ID">ID (Индонезия)</option>
+                  <option value="RU">RU (Русский)</option>
                   <option value="UA">UA (Украина)</option>
                 </select>
               </div>
@@ -279,6 +286,31 @@
 
         <div>
           <div class="card">
+            <h2>Входящие ответы в Telegram (IMAP)</h2>
+            <p style="font-size:12px; color:var(--muted); margin-top:0;">
+              Укажите рабочий Gmail (куда Cloudflare пересылает письма) и его 16-символьный «Пароль приложения», чтобы ответы клиентов сразу падали в Telegram-бот с кнопкой «Ответить».
+            </p>
+            <div class="row">
+              <div>
+                <label>IMAP сервер</label>
+                <input type="text" id="imap-host" value="imap.gmail.com">
+              </div>
+              <div>
+                <label>Порт</label>
+                <input type="number" id="imap-port" value="993">
+              </div>
+            </div>
+            <label>Почта (логин IMAP)</label>
+            <input type="email" id="imap-user" placeholder="work@gmail.com">
+            <label>Пароль приложения Google</label>
+            <input type="password" id="imap-pass" placeholder="xxxx xxxx xxxx xxxx">
+            <div class="btn-row">
+              <button class="btn btn-primary" onclick="saveImap()">Проверить и сохранить IMAP</button>
+            </div>
+            <div id="imap-result"></div>
+          </div>
+
+          <div class="card">
             <h2>Подключённые почтовые каналы</h2>
             <div id="accounts-list"></div>
           </div>
@@ -362,15 +394,90 @@
       return list;
     }
 
+    let UI_LANG = localStorage.getItem('outreach_ui_lang') || 'ru';
+    const UI_I18N = {
+      ru: {
+        shield: 'Анти-спам защита активна',
+        ready: 'Готов',
+        sending: 'Идёт рассылка...',
+        tab1: '1. Запуск рассылки',
+        tab2: '2. Шаблоны и Проверка текста',
+        tab3: '3. Почты (SMTP/Resend) и Защита',
+        checkBtn: 'Проверить анти-спам',
+        startBtn: 'Запустить рассылку',
+        testBtn: 'Тест',
+        tgOn: 'TG Бот: активен',
+        tgOff: 'TG Бот: выкл',
+      },
+      en: {
+        shield: 'Anti-spam guard active',
+        ready: 'Ready',
+        sending: 'Sending...',
+        tab1: '1. Launch Campaign',
+        tab2: '2. Templates & Spam Check',
+        tab3: '3. Accounts (SMTP/Resend) & Guard',
+        checkBtn: 'Run Spam Check',
+        startBtn: 'Start Campaign',
+        testBtn: 'Test',
+        tgOn: 'TG Bot: active',
+        tgOff: 'TG Bot: off',
+      },
+      id: {
+        shield: 'Proteksi anti-spam aktif',
+        ready: 'Siap',
+        sending: 'Mengirim...',
+        tab1: '1. Mulai Kampanye',
+        tab2: '2. Template & Cek Spam',
+        tab3: '3. Akun (SMTP/Resend) & Proteksi',
+        checkBtn: 'Cek Anti-Spam',
+        startBtn: 'Mulai Kampanye',
+        testBtn: 'Tes',
+        tgOn: 'Bot TG: aktif',
+        tgOff: 'Bot TG: nonaktif',
+      },
+    };
+
+    function setUiLang(lang) {
+      UI_LANG = UI_I18N[lang] ? lang : 'ru';
+      localStorage.setItem('outreach_ui_lang', UI_LANG);
+      const t = UI_I18N[UI_LANG];
+      document.getElementById('shield-badge').textContent = t.shield;
+      document.getElementById('tab-btn-send').textContent = t.tab1;
+      document.getElementById('tab-btn-templates').textContent = t.tab2;
+      document.getElementById('tab-btn-accounts').textContent = t.tab3;
+      document.querySelector('button[onclick="runSafetyCheck()"]').textContent = t.checkBtn;
+      document.getElementById('btn-start').textContent = t.startBtn;
+      document.querySelector('button[onclick="sendTest()"]').textContent = t.testBtn;
+      if (STATE_DATA) {
+        document.getElementById('tg-badge').textContent = STATE_DATA.tg_enabled ? t.tgOn : t.tgOff;
+        document.getElementById('run-badge').textContent = STATE_DATA.campaign.running ? t.sending : t.ready;
+      }
+    }
+
     async function loadState() {
       const data = await api('/api/state');
       STATE_DATA = data;
+      const t = UI_I18N[UI_LANG] || UI_I18N.ru;
 
       document.getElementById('stat-today').textContent = `Сегодня: ${data.stats.sent_today} / ${data.limits.default_daily_limit}`;
       document.getElementById('stat-total').textContent = `Всего отправлено: ${data.stats.total_sent}`;
 
+      const tgBadge = document.getElementById('tg-badge');
+      tgBadge.textContent = data.tg_enabled ? t.tgOn : t.tgOff;
+      tgBadge.className = 'pill ' + (data.tg_enabled ? 'ok' : '');
+
+      if (data.imap) {
+        if (!document.getElementById('imap-user').value && data.imap.user) {
+          document.getElementById('imap-user').value = data.imap.user;
+        }
+        if (data.imap.configured) {
+          document.getElementById('imap-host').value = data.imap.host;
+          document.getElementById('imap-port').value = data.imap.port;
+        }
+      }
+
       const running = data.campaign.running;
-      document.getElementById('run-badge').textContent = running ? 'Идёт рассылка...' : 'Готов';
+      document.getElementById('run-badge').textContent = running ? t.sending : t.ready;
       document.getElementById('run-badge').className = 'pill ' + (running ? 'warn' : 'ok');
       document.getElementById('btn-stop-top').classList.toggle('hidden', !running);
       document.getElementById('btn-start').disabled = running;
@@ -638,6 +745,26 @@
       }
     }
 
+    async function saveImap() {
+      try {
+        renderAlert('imap-result', 'warn', 'Проверяем подключение к IMAP...');
+        await api('/api/imap', {
+          method: 'POST',
+          body: JSON.stringify({
+            host: document.getElementById('imap-host').value,
+            port: Number(document.getElementById('imap-port').value),
+            user: document.getElementById('imap-user').value,
+            password: document.getElementById('imap-pass').value,
+          }),
+        });
+        renderAlert('imap-result', 'ok', 'IMAP подключён! Новые ответы будут приходить в Telegram-бот.');
+        document.getElementById('imap-pass').value = '';
+        await loadState();
+      } catch (e) {
+        renderAlert('imap-result', 'err', e.message);
+      }
+    }
+
     async function deleteSmtp(id) {
       await api('/api/accounts/delete', { method: 'POST', body: JSON.stringify({ id }) });
       await loadState();
@@ -656,6 +783,7 @@
     }
 
     (async () => {
+      setUiLang(UI_LANG);
       await loadState();
       await loadLeads();
       setInterval(() => {
