@@ -107,12 +107,16 @@ class PanelHandler(BaseHTTPRequestHandler):
             sent_log = load_sent_log()
             stats = get_sent_stats(sent_log)
             imap_cfg = load_imap_config()
+            inbox_items = load_inbox_store().get("items", [])
+            inbox_pending = sum(1 for it in inbox_items if it.get("status") == "REPLIED")
             self._send_json(
                 HTTPStatus.OK,
                 {
                     "accounts": accounts,
                     "sources": csv_sources(),
                     "stats": stats,
+                    "inbox_pending": inbox_pending,
+                    "inbox_total": len(inbox_items),
                     "tg_enabled": bool(env.get("TG_BOT_TOKEN", "").strip()),
                     "imap": {
                         "host": imap_cfg["host"],

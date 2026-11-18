@@ -101,6 +101,7 @@
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <span class="pill" id="stat-today"></span>
         <span class="pill" id="stat-total"></span>
+        <span class="pill" id="inbox-badge" style="cursor:pointer;" onclick="switchTab('inbox', document.getElementById('tab-btn-inbox'))"></span>
         <span class="pill" id="run-badge"></span>
         <button class="btn btn-red hidden" id="btn-stop-top" data-i18n="stopTopBtn" onclick="stopCampaign()"></button>
         <div style="display:flex; gap:4px;">
@@ -437,6 +438,7 @@
         syncDoneMsg: 'Синхронизация завершена: новых писем {n}',
         replySentOk: 'Ответ отправлен клиенту {email}',
         statusSavedOk: 'Статус обновлён: {email} → {st}',
+        repliesPill: 'Ответы: {pend} новых ({tot})',
         waveSettings: 'Настройки волны',
         senderChannelLbl: 'От кого отправлять (Канал)',
         sourceBaseLbl: 'База контактов',
@@ -568,6 +570,7 @@
         syncDoneMsg: 'Sync finished: {n} new messages',
         replySentOk: 'Reply sent to {email}',
         statusSavedOk: 'Status updated: {email} → {st}',
+        repliesPill: 'Replies: {pend} new ({tot})',
         waveSettings: 'Campaign Settings',
         senderChannelLbl: 'Sender Account (Channel)',
         sourceBaseLbl: 'Contact Database',
@@ -699,6 +702,7 @@
         syncDoneMsg: 'Sinkronisasi selesai: {n} pesan baru',
         replySentOk: 'Balasan terkirim ke {email}',
         statusSavedOk: 'Status diperbarui: {email} → {st}',
+        repliesPill: 'Balasan: {pend} baru ({tot})',
         waveSettings: 'Pengaturan Gelombang',
         senderChannelLbl: 'Akun Pengirim (Channel)',
         sourceBaseLbl: 'Database Kontak',
@@ -885,6 +889,10 @@
       document.getElementById('shield-badge').textContent = t.shield;
       document.getElementById('stat-today').textContent = `${t.todayLbl}: ${data.stats.sent_today} / ${data.limits.default_daily_limit}`;
       document.getElementById('stat-total').textContent = `${t.totalLbl}: ${data.stats.total_sent}`;
+      const ib = document.getElementById('inbox-badge');
+      const pend = data.inbox_pending || 0;
+      ib.textContent = fmt(t.repliesPill, { pend, tot: data.inbox_total || 0 });
+      ib.className = 'pill ' + (pend > 0 ? 'warn' : '');
 
       const tgBadge = document.getElementById('tg-badge');
       tgBadge.textContent = data.tg_enabled ? t.tgOn : t.tgOff;
@@ -1262,32 +1270,44 @@
         : t.inboxNoImap;
 
       const items = data.items || [];
-      document.getElementById('inbox-list').innerHTML = items.length ? items.map(it => {
-        const ourReplies = (it.our_replies || []).map(r =>
-          `<div style="margin-top:6px;padding:8px;border-radius:6px;background:#0f172a;border:1px solid #1e3a8a;font-size:12px;"><strong>${escapeHtml(t.ourReplyPrefix)} (${escapeHtml(r.via || 'web')}):</strong><br>${escapeHtml(r.text)}</div>`
-        ).join('');
-        return `
-          <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;background:#0b0e14;">
-            <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-              <div><strong>${escapeHtml(it.from_name || it.from_email)}</strong> &lt;${escapeHtml(it.from_email)}&gt;</div>
-              <span class="pill ${it.status === 'INTERESTED' ? 'ok' : ''}">${escapeHtml(it.status || 'REPLIED')}</span>
-            </div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${escapeHtml(it.subject)}</div>
-            <div style="font-size:13px;white-space:pre-wrap;max-height:140px;overflow:auto;">${escapeHtml(it.body)}</div>
-            ${ourReplies}
-            <div style="margin-top:8px;">
-              <textarea id="reply-box-${escapeHtml(it.id)}" placeholder="${escapeHtml(t.replyPh)}" style="min-height:60px;"></textarea>
-              <div class="btn-row">
-                <button class="btn btn-primary" data-id="${escapeHtml(it.id)}" onclick="sendWebReply(this.dataset.id)">${escapeHtml(t.sendReplyBtn)}</button>
-                <button class="btn btn-green" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'INTERESTED')">${escapeHtml(t.leadBtn)}</button>
-                <button class="btn btn-ghost" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'CLOSED')">${escapeHtml(t.doneBtn)}</button>
-                <button class="btn btn-red" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'BLOCKED')">${escapeHtml(t.blockBtn)}</button>
+      const activeEl = document.activeElement;
+      const isTypingReply = activeEl && activeEl.id && activeEl.id.startsWith('reply-box-');
+      if (!isTypingReply) {
+        const savedDrafts = {};
+        document.querySelectorAll('[id^="reply-box-"]').forEach(el => {
+          if (el.value) savedDrafts[el.id] = el.value;
+        });
+        document.getElementById('inbox-list').innerHTML = items.length ? items.map(it => {
+          const ourReplies = (it.our_replies || []).map(r =>
+            `<div style="margin-top:6px;padding:8px;border-radius:6px;background:#0f172a;border:1px solid #1e3a8a;font-size:12px;"><strong>${escapeHtml(t.ourReplyPrefix)} (${escapeHtml(r.via || 'web')}):</strong><br>${escapeHtml(r.text)}</div>`
+          ).join('');
+          return `
+            <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;background:#0b0e14;">
+              <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                <div><strong>${escapeHtml(it.from_name || it.from_email)}</strong> &lt;${escapeHtml(it.from_email)}&gt;</div>
+                <span class="pill ${it.status === 'INTERESTED' ? 'ok' : ''}">${escapeHtml(it.status || 'REPLIED')}</span>
               </div>
-              <div id="inbox-item-msg-${escapeHtml(it.id)}"></div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">${escapeHtml(it.subject)}</div>
+              <div style="font-size:13px;white-space:pre-wrap;max-height:140px;overflow:auto;">${escapeHtml(it.body)}</div>
+              ${ourReplies}
+              <div style="margin-top:8px;">
+                <textarea id="reply-box-${escapeHtml(it.id)}" placeholder="${escapeHtml(t.replyPh)}" style="min-height:60px;"></textarea>
+                <div class="btn-row">
+                  <button class="btn btn-primary" data-id="${escapeHtml(it.id)}" onclick="sendWebReply(this.dataset.id)">${escapeHtml(t.sendReplyBtn)}</button>
+                  <button class="btn btn-green" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'INTERESTED')">${escapeHtml(t.leadBtn)}</button>
+                  <button class="btn btn-ghost" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'CLOSED')">${escapeHtml(t.doneBtn)}</button>
+                  <button class="btn btn-red" data-id="${escapeHtml(it.id)}" onclick="setInboxStatus(this.dataset.id, 'BLOCKED')">${escapeHtml(t.blockBtn)}</button>
+                </div>
+                <div id="inbox-item-msg-${escapeHtml(it.id)}"></div>
+              </div>
             </div>
-          </div>
-        `;
-      }).join('') : `<div style="font-size:13px;color:var(--muted);">${escapeHtml(t.inboxEmpty)}</div>`;
+          `;
+        }).join('') : `<div style="font-size:13px;color:var(--muted);">${escapeHtml(t.inboxEmpty)}</div>`;
+        Object.entries(savedDrafts).forEach(([k, v]) => {
+          const el = document.getElementById(k);
+          if (el) el.value = v;
+        });
+      }
 
       const q = (document.getElementById('search-sent').value || '').trim().toLowerCase();
       const sentFiltered = (data.sent || []).filter(s =>
@@ -1357,8 +1377,10 @@
       await loadState();
       await loadLeads();
       await loadInbox();
+      let tick = 0;
       setInterval(() => {
-        if (STATE_DATA && STATE_DATA.campaign && STATE_DATA.campaign.running) {
+        tick += 1;
+        if ((STATE_DATA && STATE_DATA.campaign && STATE_DATA.campaign.running) || tick % 3 === 0) {
           loadState();
         }
         if (ACTIVE_TAB === 'inbox') {
