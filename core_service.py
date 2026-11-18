@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import re
 import threading
+import urllib.request
 
 from guardrails import (
     BASE_DIR,
@@ -40,7 +41,7 @@ from mailer import (
     select_template,
     send_via_account,
 )
-from prepare_leads import check_domain_mx, is_clean_syntax
+from prepare_leads import check_domain_mx, is_clean_syntax, query_doh_records
 
 IMAP_CONFIG_PATH = DATA_DIR / "imap_config.json"
 INBOX_PATH = DATA_DIR / "inbox_messages.json"
@@ -778,3 +779,103 @@ def update_inbox_status(item_id: str, status: str) -> dict:
             bl.add(target_email.lower())
             save_blacklist(list(bl))
     return {"ok": True, "email": target_email, "status": norm_status}
+
+
+def get_mail_system_status(check_network: bool = True) -> dict[str, object]:
+    """Inspect outbound (Resend/SMTP), Cloudflare MX/SPF/DMARC DNS, and IMAP inbound readiness."""
+    env = get_env()
+    accounts = all_accounts(env)
+    resend_key = env.get("RESEND_API_KEY", "").strip()
+    sender_email = env.get("SENDER_EMAIL", "").strip()
+    sender_name = env.get("SENDER_NAME", "").strip()
+    reply_to = env.get("REPLY_TO_EMAIL", "").strip() or sender_email
+    domain = sender_email.split("@", 1)[1].lower() if "@" in sender_email else ""
+    smtp_count = sum(1 for a in accounts if a.get("provider") == "smtp")
+    imap_cfg = load_imap_config()
+    imap_ok = bool(imap_cfg.get("user") and imap_cfg.get("password"))
+
+    resend_status = ""
+    resend_sending = ""
+    resend_error = ""
+    mx_hosts: list[str] = []
+    cloudflare_mx = False
+    spf_ok = False
+    dmarc_ok = False
+    dmarc_value = ""
+    dns_error = ""
+
+    if check_network and resend_key:
+        try:
+            req = urllib.request.Request(
+                "https://api.resend.com/domains",
+                headers={
+                    "Authorization": f"Bearer {resend_key}",
+                    "User-Agent": "outreach-mailer/1.0",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            for dom in data.get("data", []):
+                if not domain or str(dom.get("name", "")).lower() == domain:
+                    resend_status = str(dom.get("status") or "")
+                    caps = dom.get("capabilities") or {}
+                    resend_sending = str(caps.get("sending") or "")
+                    break
+            if domain and not resend_status:
+                resend_error = f"Domain {domain} not found in Resend account"
+        except Exception as exc:  # noqa: BLE001
+            resend_error = str(exc)
+
+    if check_network and domain:
+        try:
+            _, mx_raw = query_doh_records(domain, "MX", timeout=5)
+            mx_hosts = [item.split()[-1].rstrip(".") for item in mx_raw if item]
+            cloudflare_mx = any("cloudflare.net" in h.lower() for h in mx_hosts)
+        except Exception as exc:  # noqa: BLE001
+            dns_error = str(exc)
+        try:
+            _, txt_raw = query_doh_records(domain, "TXT", timeout=5)
+            spf_ok = any("v=spf1" in t.lower() for t in txt_raw) or (resend_status == "verified")
+        except Exception:  # noqa: BLE001
+            spf_ok = resend_status == "verified"
+        try:
+            _, dmarc_raw = query_doh_records(f"_dmarc.{domain}", "TXT", timeout=5)
+            for t in dmarc_raw:
+                cleaned = t.strip().strip('"')
+                if "v=dmarc1" in cleaned.lower():
+                    dmarc_ok = True
+                    dmarc_value = cleaned
+                    break
+        except Exception:  # noqa: BLE001
+            pass
+
+    outbound_ok = bool((resend_key and (resend_status == "verified" or not check_network)) or smtp_count > 0)
+    return {
+        "checked": check_network,
+        "checked_at": dt.datetime.now(dt.timezone.utc).isoformat() if check_network else "",
+        "domain": domain,
+        "sender_name": sender_name,
+        "sender_email": sender_email,
+        "reply_to_email": reply_to,
+        "resend_configured": bool(resend_key),
+        "resend_status": resend_status,
+        "resend_sending": resend_sending,
+        "resend_error": resend_error,
+        "smtp_count": smtp_count,
+        "outbound_ok": outbound_ok,
+        "mx_hosts": mx_hosts,
+        "cloudflare_mx": cloudflare_mx,
+        "spf_ok": spf_ok,
+        "dmarc_ok": dmarc_ok,
+        "dmarc_value": dmarc_value,
+        "dmarc_recommended": {
+            "type": "TXT",
+            "name": "_dmarc",
+            "value": f"v=DMARC1; p=none; rua=mailto:{reply_to or sender_email}",
+        }
+        if domain
+        else None,
+        "dns_error": dns_error,
+        "imap_configured": imap_ok,
+        "imap_user": imap_cfg.get("user", ""),
+    }

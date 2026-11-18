@@ -78,6 +78,9 @@ All runtime files (`leads_ready.csv`, `sent_log.json`, `tg_state.json`, `blackli
 ## CLI Usage
 
 ```bash
+# Run full diagnostics (Resend, Cloudflare MX/SPF/DMARC, IMAP, Telegram, leads)
+python doctor.py
+
 # Send one test email
 python mailer.py --test your_email@gmail.com --market EN --site-status no_site
 

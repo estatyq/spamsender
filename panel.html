@@ -300,30 +300,47 @@
           <div class="card">
             <h2 data-i18n="smtpTitle"></h2>
             <p style="font-size:12px; color:var(--muted); margin-top:0;" data-i18n="smtpHint"></p>
-            <label data-i18n="smtpHostLbl"></label>
-            <input type="text" id="smtp-host" value="smtp.gmail.com">
-            <div class="row">
-              <div>
-                <label data-i18n="portLbl"></label>
-                <input type="number" id="smtp-port" value="465">
+            <details id="smtp-details">
+              <summary style="cursor:pointer; font-size:13px; color:#93c5fd; margin-bottom:8px;" data-i18n="smtpOptSummary"></summary>
+              <label data-i18n="smtpHostLbl"></label>
+              <input type="text" id="smtp-host" value="smtp.gmail.com">
+              <div class="row">
+                <div>
+                  <label data-i18n="portLbl"></label>
+                  <input type="number" id="smtp-port" value="465">
+                </div>
+                <div>
+                  <label data-i18n="senderNameLbl"></label>
+                  <input type="text" id="smtp-name" data-i18n-ph="senderNamePh">
+                </div>
               </div>
-              <div>
-                <label data-i18n="senderNameLbl"></label>
-                <input type="text" id="smtp-name" data-i18n-ph="senderNamePh">
+              <label data-i18n="smtpUserLbl"></label>
+              <input type="email" id="smtp-user" placeholder="example@gmail.com">
+              <label data-i18n="smtpPassLbl"></label>
+              <input type="password" id="smtp-pass" placeholder="xxxx xxxx xxxx xxxx">
+              <div class="btn-row">
+                <button class="btn btn-primary" data-i18n="smtpSaveBtn" onclick="addSmtpAccount()"></button>
               </div>
-            </div>
-            <label data-i18n="smtpUserLbl"></label>
-            <input type="email" id="smtp-user" placeholder="example@gmail.com">
-            <label data-i18n="smtpPassLbl"></label>
-            <input type="password" id="smtp-pass" placeholder="xxxx xxxx xxxx xxxx">
-            <div class="btn-row">
-              <button class="btn btn-primary" data-i18n="smtpSaveBtn" onclick="addSmtpAccount()"></button>
-            </div>
-            <div id="smtp-result"></div>
+              <div id="smtp-result"></div>
+            </details>
           </div>
         </div>
 
         <div>
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+              <h2 style="margin:0;" data-i18n="mailHealthTitle"></h2>
+              <button class="btn btn-ghost" data-i18n="mailRefreshBtn" onclick="refreshMailHealth()"></button>
+            </div>
+            <div id="mail-health-box" style="font-size:13px;"></div>
+            <div id="mail-health-msg"></div>
+          </div>
+
+          <div class="card">
+            <h2 data-i18n="connectedChannelsTitle"></h2>
+            <div id="accounts-list"></div>
+          </div>
+
           <div class="card">
             <h2 data-i18n="imapTitle"></h2>
             <p style="font-size:12px; color:var(--muted); margin-top:0;" data-i18n="imapHint"></p>
@@ -345,11 +362,6 @@
               <button class="btn btn-primary" data-i18n="imapSaveBtn" onclick="saveImap()"></button>
             </div>
             <div id="imap-result"></div>
-          </div>
-
-          <div class="card">
-            <h2 data-i18n="connectedChannelsTitle"></h2>
-            <div id="accounts-list"></div>
           </div>
 
           <div class="card">
@@ -541,8 +553,20 @@
         saveTplBtn: 'Сохранить шаблон',
         clientPreviewTitle: 'Как письмо увидит клиент',
         tplPreviewHint: 'Нажмите «Проверить анти-спам», чтобы увидеть пример письма.',
-        smtpTitle: 'Подключить личный SMTP (Gmail и др.)',
-        smtpHint: 'Для Gmail: включите двухэтапную проверку → «Пароли приложений» → вставьте 16 символов вместо обычного пароля.',
+        smtpTitle: 'Дополнительный SMTP (необязательно)',
+        smtpHint: 'Если основной канал Resend уже подключён в .env, личный Gmail SMTP настраивать не нужно.',
+        smtpOptSummary: 'Открыть форму резервного SMTP (Gmail и др.)',
+        mailHealthTitle: 'Готовность почты и Cloudflare DNS',
+        mailRefreshBtn: 'Проверить Resend и DNS',
+        mailChecking: 'Проверяем Resend API и DNS домена...',
+        mailOutOk: 'Отправка работает: {sender} (Resend / домен подтверждён, SMTP вводить не нужно).',
+        mailOutWarn: 'Отправка: {detail}',
+        mailCfOk: 'Приём через Cloudflare активен (MX: {mx}) — письма на @{dom} и {rt} уже идут в ваш ящик.',
+        mailCfWarn: 'Cloudflare MX не обнаружен для @{dom}.',
+        mailDmarcOk: 'DMARC (_dmarc.{dom}): настроен.',
+        mailDmarcWarn: 'DMARC (_dmarc.{dom}) не найден — добавьте в Cloudflare DNS запись: {rec}',
+        mailImapReady: 'Чтение ответов в боте/вкладке 4: подключено ({user}).',
+        mailImapOpt: 'Чтение ответов в боте/вкладке 4: не подключено (необязательно — ответы уже падают в ваш Gmail через Cloudflare; для бота укажите Gmail + App Password ниже).',
         smtpHostLbl: 'SMTP сервер',
         portLbl: 'Порт',
         senderNameLbl: 'Имя отправителя',
@@ -550,8 +574,8 @@
         smtpUserLbl: 'Почта (логин SMTP)',
         smtpPassLbl: 'Пароль приложения (или SMTP пароль)',
         smtpSaveBtn: 'Проверить и подключить',
-        imapTitle: 'Входящие ответы в Telegram (IMAP)',
-        imapHint: 'Укажите рабочий Gmail (куда Cloudflare пересылает письма) и его 16-символьный «Пароль приложения», чтобы ответы клиентов сразу падали в Telegram-бот с кнопкой «Ответить».',
+        imapTitle: 'Подключить чтение ответов в бот (IMAP Gmail)',
+        imapHint: 'Опционально: укажите Gmail, куда Cloudflare пересылает письма с домена, и 16-символьный App Password Google — тогда ответы клиентов появятся в боте и во Вкладке 4.',
         imapHostLbl: 'IMAP сервер',
         imapUserLbl: 'Почта (логин IMAP)',
         imapPassLbl: 'Пароль приложения Google',
@@ -699,8 +723,20 @@
         saveTplBtn: 'Save Template',
         clientPreviewTitle: 'Client Inbox Preview',
         tplPreviewHint: 'Click "Run Spam Check" to preview the rendered email.',
-        smtpTitle: 'Connect Custom SMTP (Gmail, etc.)',
-        smtpHint: 'For Gmail: enable 2-Step Verification -> App Passwords -> paste the 16-character password.',
+        smtpTitle: 'Extra Custom SMTP (Optional)',
+        smtpHint: 'If Resend is already configured in .env, you do not need to add Gmail SMTP for sending.',
+        smtpOptSummary: 'Open backup SMTP form (Gmail, etc.)',
+        mailHealthTitle: 'Mail System & Cloudflare DNS Readiness',
+        mailRefreshBtn: 'Check Resend & DNS',
+        mailChecking: 'Checking Resend API and domain DNS...',
+        mailOutOk: 'Sending ready: {sender} (Resend domain verified — no extra SMTP required).',
+        mailOutWarn: 'Sending check: {detail}',
+        mailCfOk: 'Cloudflare receiving active (MX: {mx}) — replies to @{dom} & {rt} already forward to your inbox.',
+        mailCfWarn: 'Cloudflare MX not detected for @{dom}.',
+        mailDmarcOk: 'DMARC (_dmarc.{dom}): configured.',
+        mailDmarcWarn: 'DMARC (_dmarc.{dom}) missing — recommended TXT record in Cloudflare DNS: {rec}',
+        mailImapReady: 'Bot / Tab 4 inbox bridge: connected ({user}).',
+        mailImapOpt: 'Bot / Tab 4 inbox bridge: not connected (optional — replies already land in your Gmail via Cloudflare; enter Gmail + App Password below to mirror into bot).',
         smtpHostLbl: 'SMTP Host',
         portLbl: 'Port',
         senderNameLbl: 'Sender Name',
@@ -708,8 +744,8 @@
         smtpUserLbl: 'Email (SMTP Username)',
         smtpPassLbl: 'App Password (or SMTP Password)',
         smtpSaveBtn: 'Test & Connect',
-        imapTitle: 'Forward Replies to Telegram (IMAP)',
-        imapHint: 'Enter your work Gmail (receiving forwarded mail from Cloudflare) and its 16-char Google App Password so client replies appear in the Telegram bot with a Reply button.',
+        imapTitle: 'Mirror Replies into Bot (Gmail IMAP)',
+        imapHint: 'Optional: enter the Gmail receiving forwarded mail from Cloudflare and its 16-char Google App Password so client replies appear inside Telegram and Tab 4.',
         imapHostLbl: 'IMAP Host',
         imapUserLbl: 'Email (IMAP Login)',
         imapPassLbl: 'Google App Password',
@@ -857,8 +893,20 @@
         saveTplBtn: 'Simpan Template',
         clientPreviewTitle: 'Pratinjau di Kotak Masuk Klien',
         tplPreviewHint: 'Klik "Cek Anti-Spam" untuk melihat contoh pesan.',
-        smtpTitle: 'Hubungkan SMTP Pribadi (Gmail, dll.)',
-        smtpHint: 'Untuk Gmail: aktifkan Verifikasi 2 Langkah -> App Passwords -> masukkan 16 karakter sandi aplikasi.',
+        smtpTitle: 'SMTP Cadangan (Opsional)',
+        smtpHint: 'Jika Resend sudah aktif di .env, Anda tidak perlu mengisi SMTP Gmail untuk mengirim email.',
+        smtpOptSummary: 'Buka form SMTP cadangan (Gmail, dll.)',
+        mailHealthTitle: 'Status Sistem Email & Cloudflare DNS',
+        mailRefreshBtn: 'Cek Resend & DNS',
+        mailChecking: 'Memeriksa API Resend dan DNS domain...',
+        mailOutOk: 'Pengiriman siap: {sender} (Resend terverifikasi — tidak perlu SMTP tambahan).',
+        mailOutWarn: 'Status pengiriman: {detail}',
+        mailCfOk: 'Penerimaan Cloudflare aktif (MX: {mx}) — balasan ke @{dom} & {rt} sudah masuk ke kotak masuk Anda.',
+        mailCfWarn: 'MX Cloudflare tidak ditemukan untuk @{dom}.',
+        mailDmarcOk: 'DMARC (_dmarc.{dom}): aktif.',
+        mailDmarcWarn: 'DMARC (_dmarc.{dom}) belum ada — disarankan tambah TXT di Cloudflare DNS: {rec}',
+        mailImapReady: 'Sinkron balasan bot/Tab 4: terhubung ({user}).',
+        mailImapOpt: 'Sinkron balasan bot/Tab 4: belum diatur (opsional — balasan sudah masuk ke Gmail via Cloudflare; isi Gmail + App Password di bawah agar tampil di bot).',
         smtpHostLbl: 'Server SMTP',
         portLbl: 'Port',
         senderNameLbl: 'Nama Pengirim',
@@ -866,8 +914,8 @@
         smtpUserLbl: 'Email (Login SMTP)',
         smtpPassLbl: 'App Password (atau sandi SMTP)',
         smtpSaveBtn: 'Tes & Hubungkan',
-        imapTitle: 'Teruskan Balasan ke Telegram (IMAP)',
-        imapHint: 'Masukkan Gmail kerja (penerima forward Cloudflare) dan 16 karakter Google App Password agar balasan klien otomatis masuk ke bot Telegram.',
+        imapTitle: 'Hubungkan Balasan ke Bot (IMAP Gmail)',
+        imapHint: 'Opsional: masukkan Gmail penerima forward Cloudflare dan 16 karakter Google App Password agar balasan klien tampil langsung di bot dan Tab 4.',
         imapHostLbl: 'Server IMAP',
         imapUserLbl: 'Email (Login IMAP)',
         imapPassLbl: 'Google App Password',
@@ -1081,6 +1129,40 @@
           ${a.provider === 'smtp' ? `<button class="btn btn-ghost" data-id="${escapeHtml(a.id)}" onclick="deleteSmtp(this.dataset.id)">${escapeHtml(t.deleteBtn)}</button>` : `<span class="pill ok">${escapeHtml(t.primaryEnv)}</span>`}
         </div>
       `).join('');
+
+      const smtpDet = document.getElementById('smtp-details');
+      if (smtpDet && !data.accounts.length) smtpDet.open = true;
+
+      const mh = data.mail_health || {};
+      const mhBox = document.getElementById('mail-health-box');
+      if (mhBox) {
+        const senderDesc = `${mh.sender_name || ''} <${mh.sender_email || ''}>`.trim();
+        const rows = [];
+        if (mh.outbound_ok) {
+          rows.push(`<div class="alert ok" style="margin-top:0;">${escapeHtml(fmt(t.mailOutOk, { sender: senderDesc }))}</div>`);
+        } else {
+          rows.push(`<div class="alert warn" style="margin-top:0;">${escapeHtml(fmt(t.mailOutWarn, { detail: mh.resend_error || mh.resend_status || '-' }))}</div>`);
+        }
+        if (mh.domain) {
+          if (mh.checked && mh.cloudflare_mx) {
+            rows.push(`<div class="alert ok">${escapeHtml(fmt(t.mailCfOk, { mx: (mh.mx_hosts || []).join(', '), dom: mh.domain, rt: mh.reply_to_email || mh.sender_email }))}</div>`);
+          } else if (mh.checked) {
+            rows.push(`<div class="alert warn">${escapeHtml(fmt(t.mailCfWarn, { dom: mh.domain }))}</div>`);
+          }
+          if (mh.checked && mh.dmarc_ok) {
+            rows.push(`<div class="alert ok">${escapeHtml(fmt(t.mailDmarcOk, { dom: mh.domain }))}</div>`);
+          } else if (mh.checked && mh.dmarc_recommended) {
+            const recStr = `${mh.dmarc_recommended.type} | ${mh.dmarc_recommended.name} | ${mh.dmarc_recommended.value}`;
+            rows.push(`<div class="alert warn">${escapeHtml(fmt(t.mailDmarcWarn, { dom: mh.domain, rec: recStr }))}</div>`);
+          }
+        }
+        rows.push(
+          mh.imap_configured
+            ? `<div class="alert ok">${escapeHtml(fmt(t.mailImapReady, { user: mh.imap_user }))}</div>`
+            : `<div class="alert warn">${escapeHtml(t.mailImapOpt)}</div>`
+        );
+        mhBox.innerHTML = rows.join('');
+      }
 
       document.getElementById('blacklist-items').innerHTML = data.blacklist.length
         ? data.blacklist.map(b => `<span class="pill" style="margin:3px;">${escapeHtml(b)} <a href="#" data-entry="${escapeHtml(b)}" style="color:#f87171;text-decoration:none;margin-left:4px;" onclick="modifyBlacklist('remove',this.dataset.entry);return false;">×</a></span>`).join('')
@@ -1374,6 +1456,18 @@
         await loadState();
       } catch (e) {
         renderAlert('imap-result', 'err', e.message);
+      }
+    }
+
+    async function refreshMailHealth() {
+      const t = T();
+      try {
+        renderAlert('mail-health-msg', 'warn', t.mailChecking);
+        await api('/api/mail/check', { method: 'POST', body: '{}' });
+        renderAlert('mail-health-msg', '', '');
+        await loadState();
+      } catch (e) {
+        renderAlert('mail-health-msg', 'err', e.message);
       }
     }
 

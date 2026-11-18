@@ -21,6 +21,7 @@ from core_service import (
     csv_sources,
     find_account,
     get_env,
+    get_mail_system_status,
     import_leads_text,
     load_imap_config,
     load_inbox_store,
@@ -160,6 +161,36 @@ def refresh_bot_info_async() -> None:
     threading.Thread(target=_worker, daemon=True).start()
 
 
+def refresh_mail_health_async() -> None:
+    """Refresh Resend + Cloudflare DNS (MX/SPF/DMARC) readiness in background."""
+    def _worker() -> None:
+        health = get_mail_system_status(check_network=True)
+        with BOT_CTRL_LOCK:
+            BOT_RUNTIME["mail_health"] = health
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def build_mail_health_state() -> dict[str, object]:
+    """Merge cached DNS/Resend probe with live local IMAP and SMTP account counts."""
+    live = get_mail_system_status(check_network=False)
+    with BOT_CTRL_LOCK:
+        cached = dict(BOT_RUNTIME.get("mail_health") or {})  # type: ignore[arg-type]
+    if cached:
+        merged = {**cached}
+        merged["imap_configured"] = live["imap_configured"]
+        merged["imap_user"] = live["imap_user"]
+        merged["smtp_count"] = live["smtp_count"]
+        merged["resend_configured"] = live["resend_configured"]
+        merged["outbound_ok"] = bool(
+            (live["resend_configured"] and cached.get("resend_status") == "verified")
+            or int(live["smtp_count"]) > 0
+            or (live["resend_configured"] and not cached.get("resend_error"))
+        )
+        return merged
+    return live
+
+
 def build_telegram_state(env: dict[str, str]) -> dict[str, object]:
     """Assemble safe Telegram status for web dashboard."""
     token = env.get("TG_BOT_TOKEN", "").strip()
@@ -252,6 +283,7 @@ class PanelHandler(BaseHTTPRequestHandler):
                     "inbox_total": len(inbox_items),
                     "tg_enabled": bool(env.get("TG_BOT_TOKEN", "").strip()),
                     "telegram": build_telegram_state(env),
+                    "mail_health": build_mail_health_state(),
                     "imap": {
                         "host": imap_cfg["host"],
                         "port": imap_cfg["port"],
@@ -440,6 +472,11 @@ class PanelHandler(BaseHTTPRequestHandler):
                 self._handle_tg_check(body)
             elif parsed.path == "/api/tg/ping":
                 self._handle_tg_ping(body)
+            elif parsed.path == "/api/mail/check":
+                health = get_mail_system_status(check_network=True)
+                with BOT_CTRL_LOCK:
+                    BOT_RUNTIME["mail_health"] = health
+                self._send_json(HTTPStatus.OK, {"ok": True, "mail_health": health})
             else:
                 self._send_json(HTTPStatus.NOT_FOUND, {"error": "Not found"})
         except Exception as exc:  # noqa: BLE001
@@ -593,6 +630,7 @@ def main() -> int:
     mode = resolve_configured_tg_mode(env, sys.argv)
     sync_bot_runner(mode)
     refresh_bot_info_async()
+    refresh_mail_health_async()
 
     server = ThreadingHTTPServer((HOST, PORT), PanelHandler)
     url = f"http://{HOST}:{PORT}"

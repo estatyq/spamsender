@@ -42,12 +42,12 @@ COMMON_VALID_DOMAINS = {
 }
 
 
-def check_domain_mx(domain: str) -> tuple[str, bool, str]:
-    """Return (domain, has_mx, detail) using DNS-over-HTTPS with nslookup fallback."""
-    if domain in COMMON_VALID_DOMAINS:
-        return domain, True, "known_provider"
-
-    url = f"https://cloudflare-dns.com/dns-query?name={urllib.parse.quote(domain)}&type=MX"
+def query_doh_records(name: str, rtype: str, timeout: int = 8) -> tuple[int, list[str]]:
+    """Query Cloudflare DNS-over-HTTPS JSON endpoint and return (rcode, record_values)."""
+    url = (
+        f"https://cloudflare-dns.com/dns-query"
+        f"?name={urllib.parse.quote(name)}&type={urllib.parse.quote(rtype)}"
+    )
     req = urllib.request.Request(
         url,
         headers={
@@ -55,12 +55,27 @@ def check_domain_mx(domain: str) -> tuple[str, bool, str]:
             "User-Agent": "outreach-mailer/1.0",
         },
     )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    status = int(data.get("Status") if data.get("Status") is not None else -1)
+    type_map = {"TXT": 16, "MX": 15, "CNAME": 5, "A": 1}
+    want_type = type_map.get(rtype.upper())
+    answers = data.get("Answer") or []
+    values = [
+        str(a.get("data") or "").strip()
+        for a in answers
+        if want_type is None or a.get("type") == want_type
+    ]
+    return status, [v for v in values if v]
+
+
+def check_domain_mx(domain: str) -> tuple[str, bool, str]:
+    """Return (domain, has_mx, detail) using DNS-over-HTTPS with nslookup fallback."""
+    if domain in COMMON_VALID_DOMAINS:
+        return domain, True, "known_provider"
+
     try:
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-        status = data.get("Status")
-        answers = data.get("Answer") or []
-        mx_answers = [a for a in answers if a.get("type") == 15]
+        status, mx_answers = query_doh_records(domain, "MX", timeout=8)
         if status == 0 and mx_answers:
             return domain, True, "doh_mx"
         if status == 3:
