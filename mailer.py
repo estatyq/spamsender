@@ -440,6 +440,10 @@ def filter_queue(
         and str(item.get("sent_at", "")).startswith(today_utc)
     }
 
+    norm_market = (market_filter or "ALL").strip().upper()
+    raw_site = (site_filter or "ALL").strip().lower()
+    norm_site = "ALL" if raw_site in ("", "all") else raw_site
+
     with source_path.open("r", encoding="utf-8-sig", newline="") as fh:
         rows = list(csv.DictReader(fh))
 
@@ -456,9 +460,9 @@ def filter_queue(
             continue
         seen_in_file.add(email)
 
-        if market_filter != "ALL" and contact["market"] != market_filter:
+        if norm_market != "ALL" and contact["market"] != norm_market:
             continue
-        if site_filter != "ALL" and contact["site_status"] != site_filter:
+        if norm_site != "ALL" and contact["site_status"] != norm_site:
             continue
         if email in already_sent:
             skipped_sent += 1

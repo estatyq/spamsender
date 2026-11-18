@@ -213,7 +213,8 @@ class PanelHandler(BaseHTTPRequestHandler):
             params = parse_qs(parsed.query)
             source_name = (params.get("source", [""])[0] or "").strip() or None
             market = (params.get("market", ["ALL"])[0] or "ALL").upper()
-            site_status = (params.get("site_status", ["ALL"])[0] or "ALL").lower()
+            raw_site = (params.get("site_status", ["ALL"])[0] or "ALL").lower()
+            site_status = "ALL" if raw_site in ("", "all") else raw_site
             query = (params.get("q", [""])[0] or "").strip().lower()
 
             env = {**load_env(ENV_PATH), **os.environ}
@@ -567,7 +568,8 @@ class PanelHandler(BaseHTTPRequestHandler):
             bvars = _brand_vars(env, account["sender_name"], account["sender_email"])
             source_path = resolve_source_path((body.get("source") or "").strip() or None)
             market = str(body.get("market") or "ALL").upper()
-            site_status = str(body.get("site_status") or "ALL").lower()
+            raw_site = str(body.get("site_status") or "ALL").lower()
+            site_status = "ALL" if raw_site in ("", "all") else raw_site
             tpl_id = (body.get("template_id") or "").strip() or None
             daily_limit = int(body.get("limit") or env.get("DAILY_LIMIT", "35"))
             min_delay = int(body.get("min_delay") or env.get("MIN_DELAY_SEC", "90"))
