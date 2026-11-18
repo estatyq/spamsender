@@ -50,8 +50,8 @@ python tg_bot.py
 ## 24/7 Server Deployment (Docker)
 
 ```bash
-git clone https://github.com/estatyq/spamsender.git /opt/spamsender
-cd /opt/spamsender
+git clone https://github.com/estatyq/spamsender.git /var/www/spamsender
+cd /var/www/spamsender
 cp .env.example .env
 nano .env   # fill in RESEND_API_KEY, SENDER_EMAIL, TG_BOT_TOKEN, TG_ACCESS_CODE
 mkdir -p data
