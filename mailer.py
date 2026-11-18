@@ -23,20 +23,21 @@ import urllib.error
 import urllib.request
 
 from guardrails import (
+    BASE_DIR,
+    DATA_DIR,
     check_message_safety,
     enforce_safe_pacing,
     is_blacklisted,
     load_blacklist,
 )
 
-BASE_DIR = Path(__file__).resolve().parent
 ENV_PATH = BASE_DIR / ".env"
-ACCOUNTS_PATH = BASE_DIR / "accounts.json"
-LEADS_READY_PATH = BASE_DIR / "leads_ready.csv"
-CONTACTS_PATH = BASE_DIR / "contacts.csv"
+ACCOUNTS_PATH = DATA_DIR / "accounts.json"
+LEADS_READY_PATH = DATA_DIR / "leads_ready.csv"
+CONTACTS_PATH = DATA_DIR / "contacts.csv"
 TEMPLATES_JSON_PATH = BASE_DIR / "templates.json"
 TEMPLATE_TXT_PATH = BASE_DIR / "template.txt"
-SENT_LOG_PATH = BASE_DIR / "sent_log.json"
+SENT_LOG_PATH = DATA_DIR / "sent_log.json"
 RESEND_API_URL = "https://api.resend.com/emails"
 SPINTAX_RE = re.compile(r"\{([^{}]*\|[^{}]*)\}")
 
@@ -369,10 +370,14 @@ def resolve_source_path(source_arg: str | None) -> Path:
     """Pick CSV file from CLI argument, leads_ready.csv, or contacts.csv."""
     if source_arg:
         p = Path(source_arg)
-        return p if p.is_absolute() else BASE_DIR / p
+        if p.is_absolute():
+            return p
+        return (DATA_DIR / p) if (DATA_DIR / p).exists() else (BASE_DIR / p)
     if LEADS_READY_PATH.exists():
         return LEADS_READY_PATH
-    return CONTACTS_PATH
+    if CONTACTS_PATH.exists():
+        return CONTACTS_PATH
+    return BASE_DIR / "contacts.csv"
 
 
 def normalize_contact(raw_row: dict[str, str], brand_vars: dict[str, str]) -> dict[str, str]:

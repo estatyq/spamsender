@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import re
 import string
 
 BASE_DIR = Path(__file__).resolve().parent
-BLACKLIST_PATH = BASE_DIR / "blacklist.txt"
+DATA_DIR = Path(os.environ.get("DATA_DIR") or BASE_DIR)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+BLACKLIST_PATH = DATA_DIR / "blacklist.txt"
 
 PLACEHOLDER_RE = re.compile(r"\{([^{}]+)\}")
 URL_RE = re.compile(r"https?://[^\s<>\"]+", re.IGNORECASE)

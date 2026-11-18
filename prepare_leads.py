@@ -13,11 +13,11 @@ import subprocess
 import urllib.parse
 import urllib.request
 
+from guardrails import BASE_DIR, DATA_DIR
 from mailer import ENV_PATH, load_env
 
-BASE_DIR = Path(__file__).resolve().parent
-READY_CSV = BASE_DIR / "leads_ready.csv"
-INVALID_CSV = BASE_DIR / "leads_invalid.csv"
+READY_CSV = DATA_DIR / "leads_ready.csv"
+INVALID_CSV = DATA_DIR / "leads_invalid.csv"
 
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 JUNK_LOCAL_PREFIXES = ("noreply", "no-reply", "donotreply", "do-not-reply", "mailer-daemon")

@@ -17,11 +17,12 @@ import re
 import threading
 
 from guardrails import (
+    BASE_DIR,
+    DATA_DIR,
     check_message_safety,
     enforce_safe_pacing,
 )
 from mailer import (
-    BASE_DIR,
     CONTACTS_PATH,
     ENV_PATH,
     LEADS_READY_PATH,
@@ -38,7 +39,7 @@ from mailer import (
 )
 from prepare_leads import check_domain_mx, is_clean_syntax
 
-IMAP_CONFIG_PATH = BASE_DIR / "imap_config.json"
+IMAP_CONFIG_PATH = DATA_DIR / "imap_config.json"
 
 
 class CampaignState:

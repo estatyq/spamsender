@@ -22,7 +22,7 @@ from core_service import (
     send_reply_email,
     start_campaign_async,
 )
-from guardrails import load_blacklist, save_blacklist
+from guardrails import DATA_DIR, check_message_safety, load_blacklist, save_blacklist
 from mailer import (
     BASE_DIR,
     LEADS_READY_PATH,
@@ -36,9 +36,8 @@ from mailer import (
     select_template,
     send_via_account,
 )
-from guardrails import check_message_safety
 
-TG_STATE_PATH = BASE_DIR / "tg_state.json"
+TG_STATE_PATH = DATA_DIR / "tg_state.json"
 STATE_FILE_LOCK = threading.Lock()
 
 STRINGS: dict[str, dict[str, str]] = {

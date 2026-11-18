@@ -47,6 +47,20 @@ To run the Telegram bot standalone without the web UI:
 python tg_bot.py
 ```
 
+## 24/7 Server Deployment (Docker)
+
+```bash
+git clone https://github.com/estatyq/spamsender.git /opt/spamsender
+cd /opt/spamsender
+cp .env.example .env
+nano .env   # fill in RESEND_API_KEY, SENDER_EMAIL, TG_BOT_TOKEN, TG_ACCESS_CODE
+mkdir -p data
+docker compose up -d --build
+docker compose logs -f bot
+```
+All runtime files (`leads_ready.csv`, `sent_log.json`, `tg_state.json`, `blacklist.txt`, `imap_config.json`) persist inside `./data` on the host.
+*(If running the bot 24/7 on a server, launch the local Windows web panel with `python panel.py --no-bot` so only one instance polls Telegram.)*
+
 ### Features & Anti-Spam Guardrails
 - Visual queue filtering (`EN` / `ID` / `RU` / `UA`, `no_site` / `has_site`) and live search
 - Lead import (`.csv` / `.txt` or pasted lines via web UI or Telegram chat) with automatic DNS MX validation

@@ -1,0 +1,12 @@
+.git
+.env
+data
+__pycache__
+*.pyc
+sent_log.json
+tg_state.json
+accounts.json
+imap_config.json
+blacklist.txt
+leads_ready.csv
+leads_invalid.csv

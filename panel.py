@@ -337,7 +337,7 @@ class PanelHandler(BaseHTTPRequestHandler):
 
 def main() -> int:
     """Start local web panel server and background Telegram bot (if configured)."""
-    bot_runner = start_bot_in_background()
+    bot_runner = None if "--no-bot" in os.sys.argv else start_bot_in_background()
     server = ThreadingHTTPServer((HOST, PORT), PanelHandler)
     url = f"http://{HOST}:{PORT}"
     print(f"Email Outreach Panel running at {url}")
