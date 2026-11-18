@@ -161,21 +161,22 @@ def import_leads_text(
 
     if lines and ("email" in lines[0].lower() and ("," in lines[0] or ";" in lines[0])):
         delim = ";" if lines[0].count(";") > lines[0].count(",") else ","
-        for row in csv.DictReader(lines, delimiter=delim):
-            em = (row.get("email") or row.get("Email") or "").strip().lower()
+        for raw_row in csv.DictReader(lines, delimiter=delim):
+            row = {(k or "").strip().lower(): (v or "").strip() for k, v in raw_row.items() if k}
+            em = row.get("email", "").lower()
             if em:
                 parsed_rows.append(
                     {
                         "email": em,
-                        "company": (row.get("company") or row.get("Company_Name") or row.get("name") or "your team").strip(),
-                        "market": (row.get("market") or row.get("Market") or market).strip().upper(),
-                        "country": (row.get("country") or row.get("Country") or "").strip(),
-                        "city": (row.get("city") or row.get("City") or "").strip(),
-                        "niche": (row.get("niche") or row.get("Niche") or "").strip(),
-                        "site_status": (row.get("site_status") or row.get("Site_Status") or site_status).strip().lower(),
-                        "site_url": (row.get("site_url") or row.get("Site_URL") or "").strip(),
-                        "phone": (row.get("phone") or row.get("Phone_Formatted") or "").strip(),
-                        "source": "manual_import",
+                        "company": row.get("company") or row.get("company_name") or row.get("name") or "your team",
+                        "market": (row.get("market") or market).upper(),
+                        "country": row.get("country", ""),
+                        "city": row.get("city", ""),
+                        "niche": row.get("niche", ""),
+                        "site_status": (row.get("site_status") or site_status).lower(),
+                        "site_url": row.get("site_url", ""),
+                        "phone": row.get("formatted") or row.get("phone_formatted") or row.get("phone", ""),
+                        "source": row.get("source") or "manual_import",
                     }
                 )
     else:
